@@ -2,7 +2,15 @@ const  express =  require('express');
 const authRoutes = require('./routes/authRoutes.js');
 const cors = require('cors')
 const app = express();
-app.use(cors("/*"))
+
+const cors = require('cors');
+
+const corsOptions = {
+  origin: ['http://localhost:3000', "https://favourite-plug.vercel.app/"],
+  optionsSuccessStatus: 200,        // some legacy browsers choke on 204
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
