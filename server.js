@@ -3,10 +3,11 @@ const authRoutes = require('./routes/authRoutes.js');
 const cors = require('cors')
 const app = express();
 
-const cors = require('cors');
 
 const corsOptions = {
-  origin: ['http://localhost:3000', "https://favourite-plug.vercel.app/"],
+  origin: ['http://localhost:3000', 'https://favourite-plug.vercel.app'],
+  methods: ['GET', 'POST', 'OPTIONS'], // allowed methods
+  allowedHeaders: ['Content-Type', 'Authorization'], // allowed headers
   optionsSuccessStatus: 200,
 };
 
