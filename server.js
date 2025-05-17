@@ -7,7 +7,7 @@ const cors = require('cors');
 
 const corsOptions = {
   origin: ['http://localhost:3000', "https://favourite-plug.vercel.app/"],
-  optionsSuccessStatus: 200,        // some legacy browsers choke on 204
+  optionsSuccessStatus: 200,
 };
 
 app.use(cors(corsOptions));
