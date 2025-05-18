@@ -1,12 +1,12 @@
 {
   "name": "server",
   "version": "1.0.0",
-  "main": "server",
+  "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js",
     "build": "echo 'No build step needed'",
-    "dev": "nodemon server"
+    "dev": "nodemon server.js"
   },
   "author": "",
   "type": "commonjs",
