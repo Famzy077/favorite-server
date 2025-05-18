@@ -6,14 +6,15 @@ app.use(express.json());
 
 
 const corsOptions = {
-  origin: ['http://localhost:3000', 'https://favourite-plug.vercel.app'],
+  origin: ['*'],
+  // origin: ['http://localhost:3000' || 'https://favourite-plug.vercel.app'],
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
   optionsSuccessStatus: 200
 };
 
-// 👇 Use CORS middleware BEFORE your routes
+
 app.use(cors(corsOptions));
 
 app.use('/api/auth', authRoutes);
