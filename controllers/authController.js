@@ -16,7 +16,7 @@ const sendVerificationCode = async (req, res) => {
     const { email } = req.body;
 
     if (!email) {
-      return res.status(400).json({ message: 'Email is required' });
+      return res.status(400).json({ success: false, message: 'Email is required' });
     }
 
     const code = Math.floor(1000 + Math.random() * 9000).toString();
@@ -25,7 +25,7 @@ const sendVerificationCode = async (req, res) => {
     await redisClient.setEx(`verify:${email}`, 300, code);
 
     // Send code via email
-    await transporter.sendMail({
+    const mailResponse = await transporter.sendMail({
       from: `"Favorite Plug" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: 'Your Verification Code',
@@ -33,10 +33,21 @@ const sendVerificationCode = async (req, res) => {
     });
 
     console.log(`Verification code sent to ${email}: ${code}`);
-    res.status(200).json({ message: 'Verification code sent successfully' });
+    console.log('Mail response:', mailResponse.response || mailResponse);
+
+    res.status(200).json({
+      success: true,
+      message: 'Verification code sent successfully',
+      // dev-only: comment out in prod if needed
+      debug: { code } 
+    });
   } catch (err) {
     console.error('Error sending verification code:', err);
-    res.status(500).json({ message: 'Failed to send verification code' });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send verification code',
+      error: err.message,
+    });
   }
 };
 
@@ -46,26 +57,31 @@ const verifyCode = async (req, res) => {
     const { email, code } = req.body;
 
     if (!email || !code) {
-      return res.status(400).json({ message: 'Email and code are required' });
+      return res.status(400).json({ success: false, message: 'Email and code are required' });
     }
 
     const storedCode = await redisClient.get(`verify:${email}`);
 
     if (!storedCode) {
-      return res.status(410).json({ verified: false, message: 'Code expired or not found' });
+      return res.status(410).json({ success: false, verified: false, message: 'Code expired or not found' });
     }
 
     if (storedCode !== code) {
-      return res.status(401).json({ verified: false, message: 'Invalid verification code' });
+      return res.status(401).json({ success: false, verified: false, message: 'Invalid verification code' });
     }
 
     // Code is valid, delete it
     await redisClient.del(`verify:${email}`);
 
-    res.status(200).json({ verified: true, message: 'Verification successful' });
+    res.status(200).json({ success: true, verified: true, message: 'Verification successful' });
   } catch (err) {
     console.error('Error verifying code:', err);
-    res.status(500).json({ verified: false, message: 'Verification failed due to server error' });
+    res.status(500).json({
+      success: false,
+      verified: false,
+      message: 'Verification failed due to server error',
+      error: err.message,
+    });
   }
 };
 
