@@ -1,7 +1,3 @@
-// const nodemailer = require('nodemailer');
-// const bcrypt = require('bcryptjs');
-// const { PrismaClient } = require('@prisma/client');
-// const prisma = new PrismaClient();
 const { PrismaClient, Prisma } = require('@prisma/client');
 const redisClient = require('../utils/redisClient');
 const nodemailer = require('nodemailer');
