@@ -11,7 +11,7 @@ const router = express.Router();
 
 router.post('/send-code', sendVerificationCode);
 router.post('/verify-code', verifyCode);
-router.post('/create-acount', createAccount); // CREATE,
+router.post('/create-account', createAccount); // CREATE,
 router.get('/accounts', getAllUsers); // READ All Users
 router.get('/accounts/:id', getUser); // READ 
 router.put('/accounts/:id', updateAccount); // UPDATE
