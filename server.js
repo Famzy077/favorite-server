@@ -1,8 +1,10 @@
 const  express =  require('express');
-const authRoutes = require('./routes/authRoutes.js');
+const authRoutes = require('./routes/auth.Routes.js');
 const cors = require('cors')
 const app = express();
+const bodyParser = require('body-parser');
 app.use(express.json());
+
 
 
 const allowedOrigins = ['http://localhost:3000', 'https://favourite-plug.vercel.app'];
