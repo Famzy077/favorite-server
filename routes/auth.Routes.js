@@ -9,8 +9,8 @@ const { sendVerificationCode,
 
 const router = express.Router();
 
-router.post('/send-code', sendVerificationCode);
-router.post('/verify-code', verifyCode);
+router.post('/send-code', sendVerificationCode); //Send Verification Code
+router.post('/verify-code', verifyCode); //Verify  Code
 router.post('/create-account', createAccount); // CREATE,
 router.get('/accounts', getAllUsers); // READ All Users
 router.get('/accounts/:id', getUser); // READ 
