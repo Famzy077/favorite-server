@@ -1,3 +1,4 @@
+const jwt = require('jsonwebtoken');
 const { PrismaClient, Prisma } = require('@prisma/client');
 const redisClient = require('../utils/redisClient');
 const nodemailer = require('nodemailer');
@@ -14,6 +15,8 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS,
   },
 });
+
+
 
 // Send verification code
 const sendVerificationCode = async (req, res) => {
@@ -40,12 +43,17 @@ const sendVerificationCode = async (req, res) => {
     console.log(`Verification code sent to ${email}: ${code}`);
     console.log('Mail response:', mailResponse.response || mailResponse);
 
-    res.status(200).json({
+    const responsePayload = {
       success: true,
-      message: 'Verification code sent successfully',
-      // dev-only: comment out in prod if needed
-      debug: { code } 
-    });
+      message: 'Verification code sent successfully'
+    };
+
+    if (process.env.NODE_ENV === 'development') {
+      responsePayload.debug = { code };
+    }
+
+    res.status(200).json(responsePayload);
+
   } catch (err) {
     console.error('Error sending verification code:', err);
     res.status(500).json({
@@ -202,6 +210,68 @@ const createAccount = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and password are required',
+      });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    if (!user.verified) {
+      return res.status(403).json({
+        success: false,
+        message: 'Please verify your email before logging in',
+      });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials',
+      });
+    }
+
+    // Optional: generate JWT token
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
+      expiresIn: '7d'
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        verified: user.verified
+      }
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Login failed due to server error',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
@@ -409,6 +479,7 @@ module.exports = {
   sendVerificationCode,
   verifyCode,
   createAccount,
+  login,
   getAllUsers,
   getUser,
   updateAccount,

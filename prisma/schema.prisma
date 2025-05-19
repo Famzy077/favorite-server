@@ -8,10 +8,23 @@ datasource db {
 }
 
 model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  password     String
+  verified     Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  userDetails  UserDetails? @relation("UserToUserDetails")
+}
+
+model UserDetails {
   id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  verified  Boolean  @default(false)
+  userId    String   @unique
+  fullName  String
+  address   String
+  phone     String
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+
+  user      User     @relation("UserToUserDetails", fields: [userId], references: [id], onDelete: Cascade)
 }

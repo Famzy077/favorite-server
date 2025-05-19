@@ -1,8 +1,8 @@
 const  express =  require('express');
 const authRoutes = require('./routes/auth.Routes.js');
+const userDetailsRoutes = require('./routes/userDetails.Routes.js')
 const cors = require('cors')
 const app = express();
-const bodyParser = require('body-parser');
 app.use(express.json());
 
 
@@ -28,6 +28,8 @@ app.use(cors(corsOptions));
 
 app.use('/api/auth', authRoutes);
 app.options('/api/auth', cors(corsOptions));
+app.use('/api/user-details', userDetailsRoutes);
+app.options('/api/user-details', cors(corsOptions));
 
 app.listen(5000, () => {
   console.log('Server running on port 5000');
