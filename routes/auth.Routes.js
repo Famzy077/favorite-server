@@ -8,6 +8,7 @@ const { sendVerificationCode,
     updateAccount,
     deleteAccount } = require("../controllers/auth.Controller.js");
 const { sendCodeLimiter } = require('../middleware/rateLimiter');
+const {verifyToken} = require('../middleware/authMiddleware.js');
 
 
 
@@ -18,7 +19,7 @@ router.post('/create-account', createAccount); // CREATE,
 router.post('/login', login); // LOGIN
 router.get('/accounts', getAllUsers); // READ All Users
 router.get('/accounts/:id', getUser); // READ 
-router.put('/accounts/:id', updateAccount); // UPDATE
-router.delete('/accounts/:id', deleteAccount); // DELETE
+router.put('/accounts/:id', verifyToken, updateAccount); // UPDATE
+router.delete('/accounts/:id', verifyToken, deleteAccount);
 
 module.exports = router;

@@ -30,7 +30,7 @@ const sendVerificationCode = async (req, res) => {
     const code = Math.floor(1000 + Math.random() * 9000).toString();
 
     // Store code in Redis with 5 min expiry
-    await redisClient.setEx(`verify:${email}`, 300, code);
+    await redisClient.setEx(`verify:${email}`, 600, code);
 
     // Send code via email
     const mailResponse = await transporter.sendMail({
@@ -98,7 +98,7 @@ const verifyCode = async (req, res) => {
   }
 };
 
-
+// CREATE - Create a new user account
 const createAccount = async (req, res) => {
   try {
     const { email, password, confirmPassword } = req.body;
@@ -111,9 +111,12 @@ const createAccount = async (req, res) => {
       });
     }
 
+    // Normalize email
+    const normalizedEmail = email.toLowerCase();
+
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(normalizedEmail)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid email format'
@@ -136,9 +139,9 @@ const createAccount = async (req, res) => {
       });
     }
 
-    // Check if user exists
+    // Check if user already exists
     const existingUser = await prisma.user.findUnique({
-      where: { email }
+      where: { email: normalizedEmail }
     });
 
     if (existingUser) {
@@ -148,13 +151,25 @@ const createAccount = async (req, res) => {
       });
     }
 
+    // Check Redis for email verification
+    const isVerified = await redisClient.get(`verified:${normalizedEmail}`);
+    if (!isVerified) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Email not verified' 
+      });
+    }
+
+    // Clear the verification flag to prevent reuse
+    await redisClient.del(`verified:${normalizedEmail}`);
+
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create user
+    // Create user in the database
     const user = await prisma.user.create({
       data: {
-        email,
+        email: normalizedEmail,
         password: hashedPassword,
         verified: true
       },
@@ -175,16 +190,16 @@ const createAccount = async (req, res) => {
           pass: process.env.EMAIL_PASS,
         },
       });
-      
+
       await transporter.sendMail({
         from: `"Favorite Plug" <${process.env.EMAIL_USER}>`,
-        to: email,
+        to: normalizedEmail,
         subject: 'Welcome to Favorite Plug!',
-        html: `<h1>Welcome ${email}!</h1><p>Your account has been successfully created.</p>`
+        html: `<h1>Welcome ${normalizedEmail}!</h1><p>Your account has been successfully created.</p>`
       });
     } catch (emailError) {
       console.error('Welcome email failed:', emailError);
-      // Continue even if email fails
+      // You may optionally log this somewhere
     }
 
     res.status(201).json({
@@ -192,12 +207,13 @@ const createAccount = async (req, res) => {
       message: 'Account created successfully',
       user
     });
+
     console.log('Account created:', user);
 
   } catch (error) {
     console.error('Account creation error:', error);
-    
-    // Handle Prisma errors specifically
+
+    // Handle Prisma unique constraint error
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === 'P2002') {
         return res.status(409).json({
@@ -215,10 +231,12 @@ const createAccount = async (req, res) => {
   }
 };
 
+// LOGIN - User login
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    // Validate input
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -226,17 +244,31 @@ const login = async (req, res) => {
       });
     }
 
+    const normalizedEmail = email.toLowerCase();
+
+    // Find user by email
     const user = await prisma.user.findUnique({
-      where: { email }
+      where: { email: normalizedEmail },
     });
 
+    // If user doesn't exist or password is incorrect
     if (!user) {
-      return res.status(404).json({
+      return res.status(401).json({
         success: false,
-        message: 'User not found',
+        message: 'Invalid email or password',
       });
     }
 
+    // Check if password is correct
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password',
+      });
+    }
+
+    // Check if email is verified
     if (!user.verified) {
       return res.status(403).json({
         success: false,
@@ -244,35 +276,30 @@ const login = async (req, res) => {
       });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials',
-      });
-    }
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user.id },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
 
-    // Optional: generate JWT token
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
-      expiresIn: '7d'
-    });
-
-    res.status(200).json({
+    // Success response
+    return res.status(200).json({
       success: true,
       message: 'Login successful',
       token,
       user: {
         id: user.id,
         email: user.email,
-        verified: user.verified
-      }
+        verified: user.verified,
+      },
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Login failed due to server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
