@@ -31,6 +31,8 @@ const sendVerificationCode = async (req, res) => {
 
     // Store code in Redis with 5 min expiry
     await redisClient.setEx(`verify:${email}`, 600, code);
+    // await redisClient.set(`verify:${email}`, 'true', { EX: 600 });
+
 
     // Send code via email
     const mailResponse = await transporter.sendMail({
@@ -502,11 +504,36 @@ const deleteAccount = async (req, res) => {
   }
 };
 
+const checkEmail = async (req, res) => {
+  const { email } = req.query;
+
+  if (!email) {
+    return res.status(400).json({ success: false, message: 'Email is required' });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    return res.status(200).json({ success: true, exists: !!user });
+  } catch (error) {
+    console.error('Check email error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+
+
 module.exports = {
   sendVerificationCode,
   verifyCode,
   createAccount,
   login,
+  checkEmail,
   getAllUsers,
   getUser,
   updateAccount,
