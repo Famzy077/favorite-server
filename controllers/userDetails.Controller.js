@@ -1,6 +1,8 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { PrismaClient} = require('@prisma/client');
 
+// Initialize Prisma Client
+const prisma = new PrismaClient();
+// console.log('Prisma Client initialized', prisma);
 // CREATE User Details
 const createUserDetails = async (req, res) => {
   const { fullName, address, phone } = req.body;
@@ -88,23 +90,29 @@ const createUserDetails = async (req, res) => {
 
 // READ (Get current user's details)
 const getUserDetails = async (req, res) => {
-  const userId = req.user.id;
+  const userId = req.query.userId;
+  if (!userId) {
+    return res.status(400).json({ error: 'User ID not found in request.' });
+  }
 
   try {
     const userDetails = await prisma.userDetails.findUnique({
-      where: { userId },
+      where: {
+        userId: userId, // assuming userId is a @unique field in your schema
+      },
     });
 
     if (!userDetails) {
       return res.status(404).json({ message: 'User details not found.' });
     }
 
-    return res.status(200).json({ data: userDetails });
+    res.status(200).json({ userDetails });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: 'Server error.' });
+    console.error('Error fetching user details:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
+
 
 // UPDATE
 const updateUserDetails = async (req, res) => {
