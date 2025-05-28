@@ -2,7 +2,7 @@ const { PrismaClient} = require('@prisma/client');
 
 // Initialize Prisma Client
 const prisma = new PrismaClient();
-// console.log('Prisma Client initialized', prisma);
+
 // CREATE User Details
 const createUserDetails = async (req, res) => {
   const { fullName, address, phone } = req.body;
@@ -90,7 +90,8 @@ const createUserDetails = async (req, res) => {
 
 // READ (Get current user's details)
 const getUserDetails = async (req, res) => {
-  const userId = req.query.userId;
+  const userId = req.params.id;  // FIXED
+
   if (!userId) {
     return res.status(400).json({ error: 'User ID not found in request.' });
   }
@@ -98,7 +99,7 @@ const getUserDetails = async (req, res) => {
   try {
     const userDetails = await prisma.userDetails.findUnique({
       where: {
-        userId: userId, // assuming userId is a @unique field in your schema
+        userId, // assuming userId is @unique
       },
     });
 
