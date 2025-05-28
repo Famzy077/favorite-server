@@ -85,10 +85,16 @@ const verifyCode = async (req, res) => {
       return res.status(401).json({ success: false, verified: false, message: 'Invalid verification code' });
     }
 
-    // Code is valid, delete it
-    await redisClient.del(`verify:${email}`);
+    // Code is valid - set verification flag with 10 min expiry
+    await redisClient.setEx(`verified:${email}`, 600, 'true');
+    await redisClient.del(`verify:${email}`); // Clean up the code
 
-    res.status(200).json({ success: true, verified: true, message: 'Verification successful' });
+    res.status(200).json({ 
+      success: true, 
+      verified: true, 
+      message: 'Verification successful',
+      email // Include email in response
+    });
   } catch (err) {
     console.error('Error verifying code:', err);
     res.status(500).json({
