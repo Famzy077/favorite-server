@@ -11,14 +11,14 @@ const allowedOrigins = ['http://localhost:3000', 'https://favourite-plug.vercel.
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like Postman or curl)
+
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('CORS not allowed for this origin'));
     }
   },
-  methods: ['GET', 'POST', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   optionsSuccessStatus: 200
 };
