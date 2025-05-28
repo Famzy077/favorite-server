@@ -1,96 +1,101 @@
-const { PrismaClient} = require('@prisma/client');
+const { PrismaClient } = require('@prisma/client');
 
 // Initialize Prisma Client
 const prisma = new PrismaClient();
 
-// CREATE User Details
-const createUserDetails = async (req, res) => {
+// CREATE or UPDATE User Details
+const createOrUpdateUserDetails = async (req, res) => {
   const { fullName, address, phone } = req.body;
-  
+
   try {
-    // Safely extract user ID
     const userId = req.user?.userId || req.user?.id;
-    
+
     if (!userId) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
-        message: 'Authentication invalid: No user ID found' 
+        message: 'Authentication invalid: No user ID found',
       });
     }
 
     // Verify user exists and is verified
-    const user = await prisma.user.findUnique({ 
+    const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { verified: true }
+      select: { verified: true },
     });
 
     if (!user) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: 'User account not found' 
+        message: 'User account not found',
       });
     }
 
     if (!user.verified) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         success: false,
-        message: 'Please verify your email before adding details' 
+        message: 'Please verify your email before adding details',
       });
     }
 
     // Check for existing details
-    const existingDetails = await prisma.userDetails.findUnique({ 
-      where: { userId } 
+    const existingDetails = await prisma.userDetails.findUnique({
+      where: { userId },
     });
 
     if (existingDetails) {
-      return res.status(409).json({ 
-        success: false,
-        message: 'User details already exist',
-        data: existingDetails
+      // Update existing user details
+      const updatedDetails = await prisma.userDetails.update({
+        where: { userId },
+        data: { fullName, address, phone },
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'User details updated successfully',
+        data: updatedDetails,
       });
     }
 
     // Create new details
     const userDetails = await prisma.userDetails.create({
-      data: { 
-        userId, 
-        fullName, 
-        address, 
-        phone 
+      data: {
+        userId,
+        fullName,
+        address,
+        phone,
       },
     });
 
-    return res.status(201).json({ 
+    return res.status(201).json({
       success: true,
-      message: 'User details saved successfully', 
-      data: userDetails 
+      message: 'User details saved successfully',
+      data: userDetails,
     });
 
   } catch (error) {
     console.error('User details creation error:', error);
-    
+
     // Handle Prisma errors
-    if (error.code === 'P2002') {  // Unique constraint violation
+    if (error.code === 'P2002') {
       return res.status(400).json({
         success: false,
-        message: 'User details already exist for this account'
+        message: 'User details already exist for this account',
       });
     }
 
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
       message: 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   } finally {
-    await prisma.$disconnect(); // Proper cleanup
+    await prisma.$disconnect();
   }
 };
 
 // READ (Get current user's details)
 const getUserDetails = async (req, res) => {
-  const userId = req.params.id;  // FIXED
+  const userId = req.params.id;
 
   if (!userId) {
     return res.status(400).json({ error: 'User ID not found in request.' });
@@ -98,9 +103,7 @@ const getUserDetails = async (req, res) => {
 
   try {
     const userDetails = await prisma.userDetails.findUnique({
-      where: {
-        userId, // assuming userId is @unique
-      },
+      where: { userId }, // assuming userId is @unique
     });
 
     if (!userDetails) {
@@ -113,7 +116,6 @@ const getUserDetails = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
-
 
 // UPDATE
 const updateUserDetails = async (req, res) => {
@@ -148,7 +150,7 @@ const deleteUserDetails = async (req, res) => {
 };
 
 module.exports = {
-  createUserDetails,
+  createOrUpdateUserDetails, // 🚀 updated name
   getUserDetails,
   updateUserDetails,
   deleteUserDetails,
