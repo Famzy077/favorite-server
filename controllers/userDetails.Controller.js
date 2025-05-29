@@ -119,19 +119,28 @@ const getUserDetails = async (req, res) => {
 
 // UPDATE
 const updateUserDetails = async (req, res) => {
-  const userId = req.user.id;
+  const userId = req.user?.id;
   const { fullName, address, phone } = req.body;
 
   try {
-    const updatedDetails = await prisma.userDetails.update({
+    const updatedDetails = await prisma.userDetails.upsert({
       where: { userId },
-      data: { fullName, address, phone },
+      update: { fullName, address, phone },
+      create: {
+        userId,
+        fullName,
+        address: address || '', // optional fallback
+        phone,
+      },
     });
 
-    return res.status(200).json({ message: 'User details updated.', data: updatedDetails });
+    return res.status(200).json({
+      message: 'User details saved or updated.',
+      data: updatedDetails,
+    });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: 'Server error or details not found.' });
+    console.error('Error updating details:', error);
+    return res.status(500).json({ message: 'Server error.' });
   }
 };
 
