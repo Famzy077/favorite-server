@@ -95,7 +95,7 @@ const createOrUpdateUserDetails = async (req, res) => {
 
 // READ (Get current user's details)
 const getUserDetails = async (req, res) => {
-  const userId = req.params.id;
+  const userId = req.params.id || req.params.userId;
 
   if (!userId) {
     return res.status(400).json({ error: 'User ID not found in request.' });
@@ -119,8 +119,14 @@ const getUserDetails = async (req, res) => {
 
 // UPDATE
 const updateUserDetails = async (req, res) => {
-  const userId = req.user?.id;
-  const { fullName, address, phone } = req.body;
+  const userId = req.user.userId;
+
+
+  if (!userId) {
+    return res.status(400).json({ message: 'Missing userId from token' });
+  }
+
+  const { fullName, address = '', phone } = req.body;
 
   try {
     const updatedDetails = await prisma.userDetails.upsert({
@@ -129,7 +135,7 @@ const updateUserDetails = async (req, res) => {
       create: {
         userId,
         fullName,
-        address: address || '', // optional fallback
+        address,
         phone,
       },
     });
@@ -146,7 +152,7 @@ const updateUserDetails = async (req, res) => {
 
 // DELETE
 const deleteUserDetails = async (req, res) => {
-  const userId = req.user.id;
+  const userId = req.user.userId;
 
   try {
     await prisma.userDetails.delete({ where: { userId } });
