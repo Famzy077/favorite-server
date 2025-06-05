@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Welcome to Favorite Plug</title>
+  <style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: rgba(0, 0, 0, 0.795);
+        /* padding: 20px; */
+        place-content: center;
+        min-height: 84vh;
+    }
+    .container {
+        padding: 20px 30px;
+        border-radius: 8px;
+        /* max-width: 600px; */
+        margin: auto;
+    }
+    h1 {
+        color: white;
+    }
+    p {
+        color: white;
+        font-size: 19px;
+    }
+    a{        
+        color: rgb(61, 147, 245);
+    }
+    .shopLink{
+        text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <main>
+        <h1>Welcome, <%= email %>!</h1> <hr>
+        <p>We're thrilled to have you join <strong>Favorite Plug</strong>.</p>
+        <p>Your account was successfully created. Feel free to explore our latest tech gadgets.</p> <hr>
+        <a class="shopLink" href="favourite.com">You can visit our official website to explore our products</a>
+        <p>Cheers,<br>The Favorite Plug Team</p>
+    </main>
+    <footer>
+        <a href="mailto://example@gmail.com">for more information contact us</a>
+    </footer>
+  </div>
+</body>
+</html>

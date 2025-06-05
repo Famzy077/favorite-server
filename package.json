@@ -5,7 +5,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js",
-    "build": "npx prisma generate",    
+    "build": "npx prisma generate",
     "postinstall": "prisma generate",
     "dev": "nodemon server.js"
   },
@@ -13,11 +13,12 @@
   "type": "commonjs",
   "license": "ISC",
   "dependencies": {
-    "@prisma/client": "^6.8.2",
+    "@prisma/client": "^6.9.0",
     "bcryptjs": "^3.0.2",
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
+    "ejs": "^3.1.10",
     "express": "^5.1.0",
     "express-rate-limit": "^7.5.0",
     "git-filter-repo": "^0.0.30",
@@ -29,6 +30,6 @@
   "description": "",
   "devDependencies": {
     "nodemon": "^3.1.10",
-    "prisma": "^6.8.2"
+    "prisma": "^6.9.0"
   }
 }

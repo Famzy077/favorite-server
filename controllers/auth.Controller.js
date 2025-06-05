@@ -3,51 +3,45 @@ const { PrismaClient, Prisma } = require('@prisma/client');
 const redisClient = require('../utils/redisClient');
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcryptjs');
+const ejs = require('ejs')
+const path = require('path')
+const transporter = require('../config/mailer')
 
 // Initialize Prisma Client
 const prisma = new PrismaClient();
-
-// Configure mail transport
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
-
-
-
-// Send verification code
 const sendVerificationCode = async (req, res) => {
   try {
     const { email } = req.body;
 
     if (!email) {
-      return res.status(400).json({ success: false, message: 'Email is required' });
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required',
+      });
     }
 
     const code = Math.floor(1000 + Math.random() * 9000).toString();
 
-    // Store code in Redis with 5 min expiry
+    // Store code in Redis with 10 min expiry
     await redisClient.setEx(`verify:${email}`, 600, code);
-    // await redisClient.set(`verify:${email}`, 'true', { EX: 600 });
 
+    // Render EJS email template
+    const html = await ejs.renderFile(
+      path.join(__dirname, '../views/verification.ejs'),
+      { code }
+    );
 
-    // Send code via email
-    const mailResponse = await transporter.sendMail({
+    // Send email
+    await transporter.sendMail({
       from: `"Favorite Plug" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: 'Your Verification Code',
-      text: `Your verification code is: ${code}`,
+      html,
     });
-
-    console.log(`Verification code sent to ${email}: ${code}`);
-    console.log('Mail response:', mailResponse.response || mailResponse);
 
     const responsePayload = {
       success: true,
-      message: 'Verification code sent successfully'
+      message: 'Verification code sent successfully',
     };
 
     if (process.env.NODE_ENV === 'development') {
@@ -55,7 +49,6 @@ const sendVerificationCode = async (req, res) => {
     }
 
     res.status(200).json(responsePayload);
-
   } catch (err) {
     console.error('Error sending verification code:', err);
     res.status(500).json({
@@ -191,23 +184,18 @@ const createAccount = async (req, res) => {
 
     // Send welcome email (optional)
     try {
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS,
-        },
-      });
+      const templatePath = path.join(__dirname, '../views/welcome.ejs');
+      const html = await ejs.renderFile(templatePath, { email: normalizedEmail });
 
       await transporter.sendMail({
         from: `"Favorite Plug" <${process.env.EMAIL_USER}>`,
         to: normalizedEmail,
         subject: 'Welcome to Favorite Plug!',
-        html: `<h1>Welcome ${normalizedEmail}!</h1><p>Your account has been successfully created.</p>`
+        html, // rendered EJS HTML
       });
+
     } catch (emailError) {
       console.error('Welcome email failed:', emailError);
-      // You may optionally log this somewhere
     }
 
     res.status(201).json({
@@ -286,10 +274,11 @@ const login = async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user.id },
+      { userId: user.id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
+
 
     // Success response
     return res.status(200).json({
