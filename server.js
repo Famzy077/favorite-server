@@ -9,18 +9,18 @@ const ejs = require('ejs')
 const path = require('path');
 
 // // Set EJS as the view engine
-// app.set('view engine', 'ejs');
-// // Set the views directory
-// app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'ejs');
+// Set the views directory
+app.set('views', path.join(__dirname, 'views'));
 
-// // Static files (e.g., CSS if needed)
-// app.use(express.static(path.join(__dirname, 'public')));
+// Static files (e.g., CSS if needed)
+app.use(express.static(path.join(__dirname, 'public')));
 
-// // ✅ Route to test the email template
-// app.get('/test-verification', (req, res) => {
-//   const mockCode = '1234'; // Mock verification code
-//   res.render('verification', { code: mockCode });
-// });
+// ✅ Route to test the email template
+app.get('/test-verification', (req, res) => {
+  const mockCode = '1234'; // Mock verification code
+  res.render('verification', { code: mockCode });
+});
 
 // app.get('/welcome', async (req, res) => {
 //   const email = 'demo@example.com';
