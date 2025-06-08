@@ -1,23 +1,23 @@
 const { PrismaClient } = require('@prisma/client');
-
-// Initialize Prisma Client
 const prisma = new PrismaClient();
 
-// CREATE or UPDATE User Details
-const createOrUpdateUserDetails = async (req, res) => {
+/**
+ * Create or update user details.
+ * If details exist, update them; otherwise, create new.
+ */
+const upsertUserDetails = async (req, res) => {
   const { fullName, address, phone } = req.body;
+  const userId = req.user?.userId || req.user?.id;
+
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      message: 'Authentication invalid: No user ID found',
+    });
+  }
 
   try {
-    const userId = req.user?.userId || req.user?.id;
-
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication invalid: No user ID found',
-      });
-    }
-
-    // Verify user exists and is verified
+    // Check if user exists and is verified
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { verified: true },
@@ -37,49 +37,30 @@ const createOrUpdateUserDetails = async (req, res) => {
       });
     }
 
-    // Check for existing details
-    const existingDetails = await prisma.userDetails.findUnique({
+    // Upsert userDetails: update if exists, else create
+    const userDetails = await prisma.userDetails.upsert({
       where: { userId },
+      update: { fullName, address, phone },
+      create: { userId, fullName, address, phone },
     });
 
-    if (existingDetails) {
-      // Update existing user details
-      const updatedDetails = await prisma.userDetails.update({
-        where: { userId },
-        data: { fullName, address, phone },
-      });
+    const statusCode = userDetails ? 200 : 201;
+    const successMessage = userDetails
+      ? 'User details saved or updated successfully'
+      : 'User details created successfully';
 
-      return res.status(200).json({
-        success: true,
-        message: 'User details updated successfully',
-        data: updatedDetails,
-      });
-    }
-
-    // Create new details
-    const userDetails = await prisma.userDetails.create({
-      data: {
-        userId,
-        fullName,
-        address,
-        phone,
-      },
-    });
-
-    return res.status(201).json({
+    return res.status(statusCode).json({
       success: true,
-      message: 'User details saved successfully',
+      message: successMessage,
       data: userDetails,
     });
-
   } catch (error) {
-    console.error('User details creation error:', error);
+    console.error('User details upsert error:', error);
 
-    // Handle Prisma errors
     if (error.code === 'P2002') {
-      return res.status(400).json({
+      return res.status(409).json({
         success: false,
-        message: 'User details already exist for this account',
+        message: 'Duplicate entry: user details already exist.',
       });
     }
 
@@ -88,12 +69,12 @@ const createOrUpdateUserDetails = async (req, res) => {
       message: 'Internal server error',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
-  } finally {
-    await prisma.$disconnect();
   }
 };
 
-// READ (Get current user's details)
+/**
+ * Get user details by userId from params.
+ */
 const getUserDetails = async (req, res) => {
   const userId = req.params.id || req.params.userId;
 
@@ -103,70 +84,82 @@ const getUserDetails = async (req, res) => {
 
   try {
     const userDetails = await prisma.userDetails.findUnique({
-      where: { userId }, // assuming userId is @unique
+      where: { userId },
     });
 
     if (!userDetails) {
       return res.status(404).json({ message: 'User details not found.' });
     }
 
-    res.status(200).json({ userDetails });
+    return res.status(200).json({ success: true, data: userDetails });
   } catch (error) {
     console.error('Error fetching user details:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 };
 
-// UPDATE
-const updateUserDetails = async (req, res) => {
-  const userId = req.user.userId;
+/**
+ * Get all users with their details.
+ */
+const getAllUsers = async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        verified: true,
+        createdAt: true,
+        userDetails: {
+          select: {
+            fullName: true,
+            address: true,
+            phone: true,
+          },
+        },
+      },
+    });
 
+    return res.status(200).json({
+      success: true,
+      message: 'All users fetched successfully',
+      data: users,
+    });
+  } catch (error) {
+    console.error('Error fetching all users:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+/**
+ * Delete user details for the authenticated user.
+ */
+const deleteUserDetails = async (req, res) => {
+  const userId = req.user?.userId;
 
   if (!userId) {
     return res.status(400).json({ message: 'Missing userId from token' });
   }
 
-  const { fullName, address = '', phone } = req.body;
-
-  try {
-    const updatedDetails = await prisma.userDetails.upsert({
-      where: { userId },
-      update: { fullName, address, phone },
-      create: {
-        userId,
-        fullName,
-        address,
-        phone,
-      },
-    });
-
-    return res.status(200).json({
-      message: 'User details saved or updated.',
-      data: updatedDetails,
-    });
-  } catch (error) {
-    console.error('Error updating details:', error);
-    return res.status(500).json({ message: 'Server error.' });
-  }
-};
-
-// DELETE
-const deleteUserDetails = async (req, res) => {
-  const userId = req.user.userId;
-
   try {
     await prisma.userDetails.delete({ where: { userId } });
 
-    return res.status(200).json({ message: 'User details deleted.' });
+    return res.status(200).json({ success: true, message: 'User details deleted.' });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: 'Server error or details not found.' });
+    console.error('Error deleting user details:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error or details not found.',
+    });
   }
 };
 
 module.exports = {
-  createOrUpdateUserDetails, // 🚀 updated name
+  upsertUserDetails,
   getUserDetails,
-  updateUserDetails,
+  getAllUsers,
   deleteUserDetails,
 };

@@ -1,17 +1,17 @@
 const express = require('express');
 const {
-  createOrUpdateUserDetails,
+  upsertUserDetails,
   getUserDetails,
-  updateUserDetails,
-  deleteUserDetails
+  getAllUsers,
+  deleteUserDetails,
 } = require('../controllers/userDetails.Controller');
 const { verifyToken } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-router.post('/', verifyToken, createOrUpdateUserDetails);      // Create
+router.post('/', verifyToken, upsertUserDetails); // Create or update (upsert) user
 router.get('/:id', verifyToken, getUserDetails);          // Read
-router.put('/:id', verifyToken, updateUserDetails);       // Update
+router.get('/', getAllUsers);    // Update
 router.delete('/:id', verifyToken, deleteUserDetails);    // Delete
 
 module.exports = router;
