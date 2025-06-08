@@ -1,10 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const {verifyToken} = require('../../middleware/authMiddleware.js');
-const { authorizeRoles } = require('../../middleware/authorize.js');
+const { verifyToken } = require('../../middleware/authMiddleware');
+const { authorizeRoles } = require('../../middleware/authorize');
+const { getAllUsers } = require('../../controllers/admin.Controller');
 
-router.get('/users', verifyToken, authorizeRoles('admin'), (req, res) => {
-  res.json({ message: 'This is only for admins!' });
-});
+router.get('/users', verifyToken, authorizeRoles('ADMIN'), getAllUsers);
 
 module.exports = router;
