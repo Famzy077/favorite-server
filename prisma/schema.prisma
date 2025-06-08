@@ -20,7 +20,7 @@ model User {
 
 model UserDetails {
   id        String   @id @default(uuid())
-  name      String
+  fullName  String?
   phone     String?
   address   String?
   userId    String   @unique
