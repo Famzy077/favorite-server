@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { PrismaClient, Prisma } = require('@prisma/client');
 const redisClient = require('../utils/redisClient');
-const nodemailer = require('nodemailer');
 const bcrypt = require('bcryptjs');
 const ejs = require('ejs')
 const path = require('path')
