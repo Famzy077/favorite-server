@@ -7,7 +7,9 @@ const prisma = new PrismaClient();
  */
 const upsertUserDetails = async (req, res) => {
   const { fullName, address, phone } = req.body;
-  const userId = req.user?.userId || req.user?.id;
+  const userId = req.user.id;
+  console.log('User ID from verifyToken:', req.user.id);
+
 
   if (!userId) {
     return res.status(401).json({
@@ -44,14 +46,9 @@ const upsertUserDetails = async (req, res) => {
       create: { userId, fullName, address, phone },
     });
 
-    const statusCode = userDetails ? 200 : 201;
-    const successMessage = userDetails
-      ? 'User details saved or updated successfully'
-      : 'User details created successfully';
-
-    return res.status(statusCode).json({
+    return res.status(200).json({
       success: true,
-      message: successMessage,
+      message: 'User details saved or updated successfully',
       data: userDetails,
     });
   } catch (error) {
@@ -76,7 +73,7 @@ const upsertUserDetails = async (req, res) => {
  * Get user details by userId from params.
  */
 const getUserDetails = async (req, res) => {
-  const userId = req.params.id || req.params.userId;
+  const userId = req.params.id;
 
   if (!userId) {
     return res.status(400).json({ error: 'User ID not found in request.' });
@@ -138,7 +135,7 @@ const getAllUsers = async (req, res) => {
  * Delete user details for the authenticated user.
  */
 const deleteUserDetails = async (req, res) => {
-  const userId = req.user?.userId;
+  const userId = req.user?.id;
 
   if (!userId) {
     return res.status(400).json({ message: 'Missing userId from token' });

@@ -11,7 +11,7 @@ const router = express.Router();
 
 router.post('/', verifyToken, upsertUserDetails); // Create or update (upsert) user
 router.get('/:id', verifyToken, getUserDetails);          // Read
-router.get('/', getAllUsers);    // Update
+router.get('/', verifyToken, getAllUsers);    // Update
 router.delete('/:id', verifyToken, deleteUserDetails);    // Delete
 
 module.exports = router;
