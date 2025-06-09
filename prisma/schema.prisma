@@ -1,4 +1,4 @@
- generator client {
+generator client {
   provider = "prisma-client-js"
 }
 
@@ -7,15 +7,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
 model User {
-  id          String      @id @default(uuid())
-  email       String      @unique
+  id          String       @id @default(uuid())
+  email       String       @unique
   password    String
-  role        Role        @default(USER)
-  verified    Boolean     @default(false)
+  role        Role         @default(USER)
+  verified    Boolean      @default(false)
   userDetails UserDetails?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  products    Product[] // This field requires an opposite relation
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 }
 
 model UserDetails {
@@ -29,7 +35,19 @@ model UserDetails {
   updatedAt DateTime @updatedAt
 }
 
-enum Role {
-  USER
-  ADMIN
+model Product {
+  id          Int      @id @default(autoincrement())
+  name        String
+  price       Float
+  oldPrice    Float?
+  image       String
+  description String?
+  category    String
+  quantity    Int?     @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // --- ADD THESE TWO LINES TO FIX THE ERROR ---
+  seller   User   @relation(fields: [sellerId], references: [id])
+  sellerId String
 }

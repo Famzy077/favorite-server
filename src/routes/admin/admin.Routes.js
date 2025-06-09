@@ -4,6 +4,6 @@ const { verifyToken } = require('../../middleware/authMiddleware');
 const { authorizeRoles } = require('../../middleware/authorize');
 const { getAllUsers } = require('../../controllers/admin.Controller');
 
-router.get('/users', verifyToken, authorizeRoles('ADMIN'), getAllUsers);
+router.get('/', verifyToken, authorizeRoles('ADMIN'), getAllUsers);
 
 module.exports = router;
