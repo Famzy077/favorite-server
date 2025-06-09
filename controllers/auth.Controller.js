@@ -182,7 +182,14 @@ const createAccount = async (req, res) => {
       }
     });
 
-    // Send welcome email (optional)
+    const token = jwt.sign(
+      { userId: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+
+    // Send welcome email
     try {
       const templatePath = path.join(__dirname, '../views/welcome.ejs');
       const html = await ejs.renderFile(templatePath, { email: normalizedEmail });
@@ -200,8 +207,9 @@ const createAccount = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Account created successfully',
-      user
+      message: 'Account created and logged in successfully',
+      token: token, 
+      user: user
     });
 
     console.log('Account created:', user);
