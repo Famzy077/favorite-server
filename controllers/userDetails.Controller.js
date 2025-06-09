@@ -75,25 +75,40 @@ const upsertUserDetails = async (req, res) => {
  * Get user details by userId from params.
  */
 const getUserDetails = async (req, res) => {
-  const userId = req.params.id;
-
+  const userId = req.user.id; 
+  console.log(userId)
   if (!userId) {
-    return res.status(400).json({ error: 'User ID not found in request.' });
+    return res.status(401).json({ success: false, message: 'Authentication invalid: User ID not found in token' });
   }
 
   try {
-    const userDetails = await prisma.userDetails.findUnique({
-      where: { userId },
+    // Find the details linked to this specific user ID
+    const userDetails = await prisma.user.findUnique({
+      where: { id: userId },
+      // Select the fields you want to return
+      select: {
+        id: true,
+        email: true,
+        userDetails: { // Include the related userDetails
+          select: {
+            fullName: true,
+            address: true,
+            phone: true
+          }
+        }
+      }
     });
 
     if (!userDetails) {
-      return res.status(404).json({ message: 'User details not found.' });
+      return res.status(404).json({ success: false, message: 'User not found.' });
     }
 
-    return res.status(200).json({ success: true, data: userDetails });
+    // Return the nested userDetails object for consistency on the frontend
+    return res.status(200).json({ success: true, user: userDetails });
+
   } catch (error) {
-    console.error('Error fetching user details:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error('Error fetching current user details:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 
