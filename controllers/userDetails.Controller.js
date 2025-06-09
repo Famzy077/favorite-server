@@ -9,6 +9,8 @@ const upsertUserDetails = async (req, res) => {
   const { fullName, address, phone } = req.body;
   const userId = req.user.id;
   console.log('User ID from verifyToken:', req.user.id);
+  
+  console.log('Token payload:', req.user);
 
 
   if (!userId) {
