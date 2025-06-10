@@ -54,8 +54,8 @@ app.options('/api/auth', cors(corsOptions));
 app.use('/api/user-details', userDetailsRoutes);
 app.options('/api/user-details', cors(corsOptions));
 // Admin route
-app.use('/admin/api', adminRoutes)
-app.options('/admin/api', cors(corsOptions));
+app.use('/api/admin', adminRoutes)
+app.options('/api/admin', cors(corsOptions));
 // products route
 app.use('/api/products', productRoutes);
 app.options('/api/products', cors(corsOptions))
