@@ -19,7 +19,7 @@ model User {
   role        Role         @default(USER)
   verified    Boolean      @default(false)
   userDetails UserDetails?
-  products    Product[] // This field requires an opposite relation
+  products    Product[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
@@ -46,8 +46,7 @@ model Product {
   quantity    Int?     @default(1)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  // --- ADD THESE TWO LINES TO FIX THE ERROR ---
+  
   seller   User   @relation(fields: [sellerId], references: [id])
   sellerId String
 }

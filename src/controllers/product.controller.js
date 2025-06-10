@@ -6,10 +6,10 @@ const path = require('path');
 // --- 1. CREATE a new Product ---
 const createProduct = async (req, res) => {
   try {
-    const { name, description, price, quantity } = req.body;
+    const { name, description, price, oldPrice, quantity, categories } = req.body;
     const image = req.file;
 
-    if (!name || !price || !image) {
+    if (!name || !price || !image || !categories) {
       return res.status(400).json({ success: false, message: 'Name, price, and image are required.' });
     }
 
@@ -18,7 +18,9 @@ const createProduct = async (req, res) => {
         name,
         description,
         price: parseFloat(price),
+        oldPrice: parseFloat(oldPrice),
         quantity: parseInt(quantity, 10),
+        categories,
         imageUrl: image.path, // Save the path to the image provided by Multer
         sellerId: req.user.id, // Link product to the logged-in admin
       },
@@ -73,13 +75,15 @@ const getProductById = async (req, res) => {
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, price, quantity } = req.body;
+    const { name, description, price, oldPrice, categories, quantity } = req.body;
     const updateData = {};
 
     // Build the update object with only the fields that were provided
     if (name) updateData.name = name;
     if (description) updateData.description = description;
+    if (categories) updateData.categories = categories;
     if (price) updateData.price = parseFloat(price);
+    if (oldPrice) updateData.oldPrice = parseFloat(oldPrice);
     if (quantity) updateData.quantity = parseInt(quantity, 10);
 
     // Check if a new image file was uploaded
