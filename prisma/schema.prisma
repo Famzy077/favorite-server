@@ -17,6 +17,7 @@ model User {
   email       String       @unique
   password    String
   role        Role         @default(USER)
+  isBlocked   Boolean      @default(false)
   verified    Boolean      @default(false)
   userDetails UserDetails?
   products    Product[]
