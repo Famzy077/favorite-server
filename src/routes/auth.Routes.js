@@ -11,8 +11,6 @@ const { sendVerificationCode,
 const { sendCodeLimiter } = require('../middleware/rateLimiter');
 const {verifyToken} = require('../middleware/authMiddleware.js');
 
-
-
 const router = express.Router();
 router.post('/send-code', sendCodeLimiter, sendVerificationCode); //Send Verification Code
 router.post('/verify-code', verifyCode); //Verify  Code
