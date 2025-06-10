@@ -3,26 +3,30 @@ const prisma = new PrismaClient();
 const fs = require('fs');
 const path = require('path');
 
-// --- 1. CREATE a new Product ---
+// --- 1. CREATE a new Product (Corrected) ---
 const createProduct = async (req, res) => {
-  try {
-    const { name, description, price, oldPrice, quantity, categories } = req.body;
-    const image = req.file;
+  // Add console logs to see exactly what the server receives
+  // console.log('Request Body Received:', req.body);
+  // console.log('Request File Received:', req.file);
 
-    if (!name || !price || !image || !categories) {
-      return res.status(400).json({ success: false, message: 'Name, price, and image are required.' });
+  try {
+    const { name, description, price, oldPrice, quantity, category } = req.body;
+    const imageFile = req.file;
+
+    if (!name || !price || !category || !imageFile) {
+      return res.status(400).json({ success: false, message: 'Name, price, category, and image are required.' });
     }
 
     const newProduct = await prisma.product.create({
       data: {
         name,
         description,
+        category,
         price: parseFloat(price),
-        oldPrice: parseFloat(oldPrice),
-        quantity: parseInt(quantity, 10),
-        categories,
-        imageUrl: image.path, // Save the path to the image provided by Multer
-        sellerId: req.user.id, // Link product to the logged-in admin
+        oldPrice: oldPrice ? parseFloat(oldPrice) : null,
+        quantity: quantity ? parseInt(quantity, 10) : 1,
+        image: imageFile.path,
+        sellerId: req.user.id,
       },
     });
 
@@ -33,32 +37,26 @@ const createProduct = async (req, res) => {
   }
 };
 
-//---READ all Products ---
+// --- 2. READ all Products (No changes needed, it's good) ---
 const getAllProducts = async (req, res) => {
-  try {
-    const products = await prisma.product.findMany({
-      orderBy: {
-        createdAt: 'desc', // Show newest products first
-      },
-      include: {
-        seller: { // Include seller info
-          select: { email: true }
-        }
-      }
-    });
-    res.status(200).json({ success: true, data: products });
-  } catch (error) {
-    console.error("Get all products error:", error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
+    try {
+        const products = await prisma.product.findMany({
+          orderBy: { createdAt: 'desc' },
+          include: { seller: { select: { email: true } } }
+        });
+        res.status(200).json({ success: true, data: products });
+    } catch (error) {
+        console.error("Get all products error:", error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
 };
 
-// --- READ a single Product by ID ---
+// --- 3. READ a single Product by ID (Corrected) ---
 const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
     const product = await prisma.product.findUnique({
-      where: { id },
+      where: { id: parseInt(id, 10) },
     });
 
     if (!product) {
@@ -71,36 +69,33 @@ const getProductById = async (req, res) => {
   }
 };
 
-// --- UPDATE a Product by ID ---
+// --- UPDATE a Product by ID (Corrected) ---
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, price, oldPrice, categories, quantity } = req.body;
+    const { name, description, price, oldPrice, category, quantity } = req.body;
     const updateData = {};
 
-    // Build the update object with only the fields that were provided
     if (name) updateData.name = name;
     if (description) updateData.description = description;
-    if (categories) updateData.categories = categories;
+    if (category) updateData.category = category; // FIX
     if (price) updateData.price = parseFloat(price);
     if (oldPrice) updateData.oldPrice = parseFloat(oldPrice);
     if (quantity) updateData.quantity = parseInt(quantity, 10);
 
-    // Check if a new image file was uploaded
     if (req.file) {
-        updateData.imageUrl = req.file.path;
+      updateData.image = req.file.path;
 
-        // Optional: Delete the old image to save space
-        const productToUpdate = await prisma.product.findUnique({ where: { id } });
-        if (productToUpdate && productToUpdate.imageUrl) {
-            fs.unlink(path.join(__dirname, '..', '..', productToUpdate.imageUrl), (err) => {
-                if (err) console.error("Error deleting old image:", err);
-            });
-        }
+      const productToUpdate = await prisma.product.findUnique({ where: { id: parseInt(id, 10) } });
+      if (productToUpdate && productToUpdate.image) {
+        fs.unlink(path.join(__dirname, '..', '..', productToUpdate.image), (err) => {
+          if (err) console.error("Error deleting old image:", err);
+        });
+      }
     }
-    
+
     const updatedProduct = await prisma.product.update({
-      where: { id },
+      where: { id: parseInt(id, 10) },
       data: updateData,
     });
 
@@ -111,28 +106,24 @@ const updateProduct = async (req, res) => {
   }
 };
 
-// --- 5. DELETE a Product by ID ---
+// --- DELETE a Product by ID (Corrected) ---
 const deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
-
-    // First, find the product to get its image path for deletion
-    const productToDelete = await prisma.product.findUnique({ where: { id } });
+    const productToDelete = await prisma.product.findUnique({ where: { id: parseInt(id, 10) } });
 
     if (!productToDelete) {
-        return res.status(404).json({ success: false, message: "Product not found" });
+      return res.status(404).json({ success: false, message: "Product not found" });
     }
 
-    // Delete the image file from the server
-    if (productToDelete.imageUrl) {
-        fs.unlink(path.join(__dirname, '..', '..', productToDelete.imageUrl), (err) => {
-            if (err) console.error("Error deleting product image file:", err);
-        });
+    if (productToDelete.image) {
+      fs.unlink(path.join(__dirname, '..', '..', productToDelete.image), (err) => {
+        if (err) console.error("Error deleting product image file:", err);
+      });
     }
 
-    // Then, delete the product record from the database
     await prisma.product.delete({
-      where: { id },
+      where: { id: parseInt(id, 10) },
     });
 
     res.status(200).json({ success: true, message: 'Product deleted successfully' });
@@ -141,7 +132,6 @@ const deleteProduct = async (req, res) => {
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
-
 
 module.exports = {
   createProduct,

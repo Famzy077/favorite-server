@@ -7,18 +7,22 @@ const {
   deleteProduct,
 } = require('../controllers/product.controller');
 const { verifyToken, verifyAdmin } = require('../middleware/authMiddleware');
-const { upload } = require('../middleware/multer.config');
+const { upload } = require('../middleware/multer.config'); // Your multer config
 
 const router = express.Router();
 
-// --- Public Route (Anyone can view products) ---
-router.get('/', getAllProducts); // Get all products
-router.get('/:id', getProductById); // Get a single product
+// --- Public Routes ---
+router.get('/', getAllProducts);
+router.get('/:id', getProductById);
 
-// --- Admin-Only Routes (Protected) ---
-// Note: verifyAdmin runs after verifyToken, so req.user is available
-router.post('/', verifyToken, verifyAdmin, upload.single('productImage'), createProduct);
-router.put('/:id', verifyToken, verifyAdmin, upload.single('productImage'), updateProduct);
+// --- Admin-Only Routes ---
+
+// The fix is here: changed 'productImage' to 'image'
+router.post('/', verifyToken, verifyAdmin, upload.single('image'), createProduct);
+
+// And also here for the update route
+router.put('/:id', verifyToken, verifyAdmin, upload.single('image'), updateProduct);
+
 router.delete('/:id', verifyToken, verifyAdmin, deleteProduct);
 
 module.exports = router;
