@@ -7,7 +7,7 @@ const cors = require('cors')
 const app = express();
 app.use(express.json());
 // const ejs = require('ejs')
-// const path = require('path');
+const path = require('path');
 
 // // Set EJS as the view engine
 // app.set('view engine', 'ejs');
@@ -40,7 +40,7 @@ const corsOptions = {
       callback(new Error('CORS not allowed for this origin'));
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'HEAD',  'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   optionsSuccessStatus: 200
 };
@@ -59,6 +59,9 @@ app.options('/api/admin', cors(corsOptions));
 // products route
 app.use('/api/products', productRoutes);
 app.options('/api/products', cors(corsOptions))
+
+
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.listen(5000, () => {
   console.log('Server running on port 5000');

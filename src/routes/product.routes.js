@@ -7,7 +7,7 @@ const {
   deleteProduct,
 } = require('../controllers/product.controller');
 const { verifyToken, verifyAdmin } = require('../middleware/authMiddleware');
-const { upload } = require('../middleware/multer.config'); // Your multer config
+const { upload } = require('../middleware/multer.config'); // multer config
 
 const router = express.Router();
 
@@ -17,12 +17,8 @@ router.get('/:id', getProductById);
 
 // --- Admin-Only Routes ---
 
-// The fix is here: changed 'productImage' to 'image'
 router.post('/', verifyToken, verifyAdmin, upload.single('image'), createProduct);
-
-// And also here for the update route
 router.put('/:id', verifyToken, verifyAdmin, upload.single('image'), updateProduct);
-
 router.delete('/:id', verifyToken, verifyAdmin, deleteProduct);
 
 module.exports = router;
