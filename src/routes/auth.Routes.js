@@ -7,7 +7,9 @@ const { sendVerificationCode,
     getUser,
     updateAccount,
     checkEmail,
-    deleteAccount } = require("../controllers/auth.Controller.js");
+    deleteAccount,
+    forgotPassword,
+    resetPassword } = require("../controllers/auth.Controller.js");
 const { sendCodeLimiter } = require('../middleware/rateLimiter');
 const {verifyToken} = require('../middleware/authMiddleware.js');
 
@@ -19,6 +21,9 @@ router.get('/check-email', checkEmail); // Check if email exists
 router.post('/login', login); // LOGIN
 router.get('/accounts', getAllUsers); // READ All Users
 router.get('/accounts/:id', getUser); // READ 
+
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPassword);
 router.put('/accounts/:id', verifyToken, updateAccount); // UPDATE
 router.delete('/accounts/:id', verifyToken, deleteAccount);
 

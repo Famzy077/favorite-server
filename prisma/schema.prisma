@@ -21,6 +21,7 @@ model User {
   verified    Boolean      @default(false)
   userDetails UserDetails?
   products    Product[]
+  wishlistItems WishlistItem[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
@@ -47,7 +48,21 @@ model Product {
   quantity    Int?     @default(1)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   seller   User   @relation(fields: [sellerId], references: [id])
   sellerId String
+  wishlistedBy WishlistItem[] 
+}
+
+model WishlistItem {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId Int
+
+  @@unique([userId, productId])
 }

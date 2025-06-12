@@ -527,7 +527,75 @@ const checkEmail = async (req, res) => {
   }
 };
 
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const normalizedEmail = email.toLowerCase();
 
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+
+    // Important: Always send a success message, even if the user doesn't exist.
+    // This prevents "user enumeration," a security vulnerability.
+    if (user) {
+      const resetToken = jwt.sign(
+        { userId: user.id, email: user.email },
+        process.env.JWT_SECRET,
+        { expiresIn: '1h' }
+      );
+      
+      const resetUrl = `${process.env.CLIENT_URL}/reset-password?token=${resetToken}`;
+
+      // You can create a new EJS template for this email
+      await transporter.sendMail({
+        from: `"Favorite Plug" <${process.env.EMAIL_USER}>`,
+        to: user.email,
+        subject: 'Your Password Reset Request',
+        html: `
+          <h1>You requested a password reset</h1>
+          <p>Click this link to reset your password: <a href="${resetUrl}">Reset Password</a> It is valid for 1 hour.</p>
+        `,
+      });
+    }
+
+    res.status(200).json({ success: true, message: 'If a user with that email exists, a password reset link has been sent.' });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Token and new password are required.' });
+    }
+
+    // Verify the token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      return res.status(401).json({ success: false, message: 'Invalid or expired token.' });
+    }
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    // Update the user's password in the database
+    await prisma.user.update({
+      where: { id: decoded.userId },
+      data: { password: hashedPassword },
+    });
+
+    res.status(200).json({ success: true, message: 'Password has been reset successfully.' });
+
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
 
 module.exports = {
   sendVerificationCode,
@@ -539,4 +607,6 @@ module.exports = {
   getUser,
   updateAccount,
   deleteAccount,
+  forgotPassword,
+  resetPassword,
 };
