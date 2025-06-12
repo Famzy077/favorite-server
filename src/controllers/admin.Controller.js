@@ -1,14 +1,13 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-// --- GET all users for the admin dashboard ---
+// GET all users for the admin dashboard
 const getAllUsers = async (req, res) => {
   try {
     const users = await prisma.user.findMany({
       orderBy: {
         createdAt: 'desc',
       },
-      // IMPORTANT: Select only the fields you want to send. NEVER send the password.
       select: {
         id: true,
         email: true,

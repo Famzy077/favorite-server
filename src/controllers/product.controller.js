@@ -5,13 +5,13 @@ const path = require('path');
 
 // --- 1. CREATE a new Product (Corrected) ---
 const createProduct = async (req, res) => {
-  // Add console logs to see exactly what the server receives
   // console.log('Request Body Received:', req.body);
   // console.log('Request File Received:', req.file);
 
   try {
     const { name, description, price, oldPrice, quantity, category } = req.body;
-    const imageFile = req.file;
+    const imageFile = req.file; 
+    const imagePath = imageFile.path.replace(/\\/g, "/")
 
     if (!name || !price || !category || !imageFile) {
       return res.status(400).json({ success: false, message: 'Name, price, category, and image are required.' });
@@ -25,7 +25,7 @@ const createProduct = async (req, res) => {
         price: parseFloat(price),
         oldPrice: oldPrice ? parseFloat(oldPrice) : null,
         quantity: quantity ? parseInt(quantity, 10) : 1,
-        image: imageFile.path,
+        image: imagePath,
         sellerId: req.user.id,
       },
     });
@@ -84,7 +84,7 @@ const updateProduct = async (req, res) => {
     if (quantity) updateData.quantity = parseInt(quantity, 10);
 
     if (req.file) {
-      updateData.image = req.file.path;
+      updateData.image = req.file.path.replace(/\\/g, "/");
 
       const productToUpdate = await prisma.product.findUnique({ where: { id: parseInt(id, 10) } });
       if (productToUpdate && productToUpdate.image) {
