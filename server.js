@@ -3,6 +3,7 @@ const authRoutes = require('./src/routes/auth.Routes.js');
 const userDetailsRoutes = require('./src/routes/userDetails.Routes.js')
 const adminRoutes = require('./src/routes/admin/admin.Routes.js')
 const productRoutes = require('./src/routes/product.routes');
+const wishListRoutes = require('./src/routes/wishlist.routes.js')
 const cors = require('cors')
 const app = express();
 app.use(express.json());
@@ -59,6 +60,10 @@ app.options('/api/admin', cors(corsOptions));
 // products route
 app.use('/api/products', productRoutes);
 app.options('/api/products', cors(corsOptions))
+
+// wishlist route
+app.use('/api/wishlist', wishListRoutes);
+app.options('/api/wishlist', cors(corsOptions))
 
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
