@@ -10,7 +10,7 @@ const createProduct = async (req, res) => {
 
   try {
     const { name, description, price, oldPrice, quantity, category } = req.body;
-    // const imageFile = req.file; 
+    const imageFile = req.file; 
     const imagePath = imageFile.path.replace(/\\/g, "/")
 
     if (!name || !price || !category || !imageFile) {
