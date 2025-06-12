@@ -29,7 +29,7 @@ const path = require('path');
 //   res.send(html);
 // });
 
-const allowedOrigins = ['http://localhost:3000', 'https://favourite-plug.vercel.app', 'http://192.168.191.71:3000'];
+const allowedOrigins = ['http://localhost:3000', 'https://favourite-plug.vercel.app'];
 
 const corsOptions = {
   origin: function (origin, callback) {
