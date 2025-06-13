@@ -150,8 +150,11 @@ const deleteProduct = async (req, res) => {
   }
 };
 
-// --- 6. SEARCH for Products ---
+// Search Product
 const searchProducts = async (req, res) => {
+  // It will tell us if the function is being called and what query it received.
+  // console.log('Search function initiated. Query params received:', req.query);
+
   try {
     const { q } = req.query;
 
@@ -185,8 +188,6 @@ const searchProducts = async (req, res) => {
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
-
-
 module.exports = {
   createProduct,
   getAllProducts,

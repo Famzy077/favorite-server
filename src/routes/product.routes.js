@@ -8,18 +8,20 @@ const {
   searchProducts
 } = require('../controllers/product.controller');
 const { verifyToken, verifyAdmin } = require('../middleware/authMiddleware');
-const { upload } = require('../middleware/multer.config'); // multer config
+const { upload } = require('../middleware/multer.config');
 
 const router = express.Router();
 
 // --- Public Routes ---
-router.get('/', getAllProducts);
-router.get('/:id', getProductById);
 
-// Search routes
+// Add the new search route HERE, before the /:id route.
+// This is important because Express will otherwise think "search" is an ID.
 router.get('/search', searchProducts);
-// --- Admin-Only Routes ---
 
+router.get('/', getAllProducts);       // Get all products
+router.get('/:id', getProductById); // Get a single product
+
+// --- Admin-Only Routes (Protected) ---
 router.post('/', verifyToken, verifyAdmin, upload.single('image'), createProduct);
 router.put('/:id', verifyToken, verifyAdmin, upload.single('image'), updateProduct);
 router.delete('/:id', verifyToken, verifyAdmin, deleteProduct);
