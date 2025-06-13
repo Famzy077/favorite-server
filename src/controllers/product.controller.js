@@ -5,6 +5,8 @@ const prisma = new PrismaClient();
 const { cloudinary } = require('../config/cloudinary.config');
 
 // --- 1. CREATE a new Product (Polished Version) ---
+console.log("Cloudinary File:", req.file);
+
 const createProduct = async (req, res) => {
   try {
     const { name, description, price, oldPrice, quantity, category } = req.body;
@@ -14,7 +16,6 @@ const createProduct = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Product image is required.' });
     }
 
-    // FIX: More accurate validation for required text fields
     if (!name || !price || !category) {
         return res.status(400).json({ success: false, message: "Name, price, and category are required." });
     }
@@ -28,21 +29,24 @@ const createProduct = async (req, res) => {
         price: parseFloat(price),
         oldPrice: oldPrice ? parseFloat(oldPrice) : null, // Handle optional oldPrice
         quantity: quantity ? parseInt(quantity, 10) : 1, // Handle optional quantity
-        image: req.file.path, // The full URL from Cloudinary
-        publicId: req.file.filename, // The unique public_id from Cloudinary
+        image: req.file.path,  // The full URL from Cloudinary
+        // publicId: req.file.filename, // The unique public_id from Cloudinary
+        publicId: req.file.public_id || req.file.filename,
         sellerId: req.user.id, // The ID of the logged-in admin
       },
     });
 
     res.status(201).json({ success: true, message: 'Product created successfully!', product: newProduct });
   } catch (error) {
-    // FIX: Improved logging for better debugging in Render
     console.error("--- Create Product Error ---", { 
         message: error.message, 
         stack: error.stack,
         body: req.body,
         file: req.file 
-    });
+
+        
+      });
+      console.log("Cloudinary File:", req.file);
     // If the image was uploaded but the DB query failed, we should try to delete it
     if (req.file) {
         await cloudinary.uploader.destroy(req.file.filename);
