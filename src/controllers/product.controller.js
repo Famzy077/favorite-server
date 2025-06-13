@@ -5,9 +5,9 @@ const prisma = new PrismaClient();
 const { cloudinary } = require('../config/cloudinary.config');
 
 // --- 1. CREATE a new Product (Polished Version) ---
-console.log("Cloudinary File:", req.file);
 
 const createProduct = async (req, res) => {
+  console.log("Cloudinary File:", req.file);
   try {
     const { name, description, price, oldPrice, quantity, category } = req.body;
     
