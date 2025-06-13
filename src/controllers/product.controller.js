@@ -2,34 +2,45 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { cloudinary } = require('../config/cloudinary.config');
 
-// --- 1. CREATE a new Product (Cloudinary Version) ---
+// --- 1. CREATE a new Product (Polished Version) ---
 const createProduct = async (req, res) => {
   try {
     const { name, description, price, oldPrice, quantity, category } = req.body;
+    
+    // Check for the uploaded file from Cloudinary first
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'Product image is required.' });
     }
-
+    if (!name || !price || !category) {
+      return res.status(400).json({ success: false, message: "Name, price, and category are required." });
+    }
+    
+    // Create the new product in the database
     const newProduct = await prisma.product.create({
       data: {
         name,
-        description,
+        description: description || null,
         category,
         price: parseFloat(price),
         oldPrice: oldPrice ? parseFloat(oldPrice) : null,
         quantity: quantity ? parseInt(quantity, 10) : 1,
         image: req.file.path, // The full URL from Cloudinary
         publicId: req.file.filename, // The unique public_id from Cloudinary
-        sellerId: req.user.id,
+        sellerId: req.user.id, // The ID of the logged-in admin
       },
     });
 
     res.status(201).json({ success: true, message: 'Product created successfully!', product: newProduct });
   } catch (error) {
     console.error("Create product error:", error);
+    // If the image was uploaded but the DB query failed, we should try to delete it
+    if (req.file) {
+        await cloudinary.uploader.destroy(req.file.filename);
+    }
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
+
 
 // --- 2. READ all Products ---
 const getAllProducts = async (req, res) => {
@@ -75,21 +86,38 @@ const getProductById = async (req, res) => {
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, price, oldPrice, category, quantity } = req.body;
     const productId = parseInt(id, 10);
 
-    const updateData = {};
-    if (name) updateData.name = name;
-    // ... etc for other text fields
+    if (isNaN(productId)) {
+      return res.status(400).json({ success: false, message: "Invalid product ID." });
+    }
 
-    // If a new file is uploaded, update the image and publicId
+    const existingProduct = await prisma.product.findUnique({
+      where: { id: productId }
+    });
+
+    if (!existingProduct) {
+      return res.status(404).json({ success: false, message: "Product not found." });
+    }
+
+    const { name, description, price, oldPrice, category, quantity } = req.body;
+    const updateData = {};
+
+    if (name) updateData.name = name;
+    if (description) updateData.description = description;
+    if (category) updateData.category = category;
+    if (price) updateData.price = parseFloat(price);
+    if (oldPrice) updateData.oldPrice = parseFloat(oldPrice);
+    if (quantity) updateData.quantity = parseInt(quantity, 10);
+
     if (req.file) {
-      // Find the old product to delete its image from Cloudinary
-      const oldProduct = await prisma.product.findUnique({ where: { id: productId } });
-      if (oldProduct && oldProduct.publicId) {
-        await cloudinary.uploader.destroy(oldProduct.publicId);
+      if (existingProduct.publicId) {
+        try {
+          await cloudinary.uploader.destroy(existingProduct.publicId);
+        } catch (cloudinaryError) {
+          console.error("Cloudinary Deletion Error:", cloudinaryError);
+        }
       }
-      // Update with new image details
       updateData.image = req.file.path;
       updateData.publicId = req.file.filename;
     }
@@ -106,27 +134,22 @@ const updateProduct = async (req, res) => {
   }
 };
 
-
-
 // --- 5. DELETE a Product by ID (Cloudinary Version) ---
 const deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
     const productId = parseInt(id, 10);
 
-    // First, find the product to get its publicId
     const productToDelete = await prisma.product.findUnique({ where: { id: productId } });
 
     if (!productToDelete) {
         return res.status(404).json({ success: false, message: "Product not found" });
     }
 
-    // If a publicId exists, delete the image from Cloudinary
     if (productToDelete.publicId) {
       await cloudinary.uploader.destroy(productToDelete.publicId);
     }
 
-    // Then, delete the product record from the database
     await prisma.product.delete({
       where: { id: productId },
     });
@@ -138,11 +161,8 @@ const deleteProduct = async (req, res) => {
   }
 };
 
-// Search Product
+// --- 6. Search Product ---
 const searchProducts = async (req, res) => {
-  // It will tell us if the function is being called and what query it received.
-  // console.log('Search function initiated. Query params received:', req.query);
-
   try {
     const { q } = req.query;
 
@@ -153,18 +173,9 @@ const searchProducts = async (req, res) => {
     const products = await prisma.product.findMany({
       where: {
         OR: [
-          {
-            name: {
-              contains: q,
-              mode: 'insensitive',
-            },
-          },
-          {
-            description: {
-              contains: q,
-              mode: 'insensitive',
-            },
-          },
+          { name: { contains: q, mode: 'insensitive' } },
+          { description: { contains: q, mode: 'insensitive' } },
+          { category: { contains: q, mode: 'insensitive' } },
         ],
       },
       take: 10,
@@ -176,6 +187,7 @@ const searchProducts = async (req, res) => {
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
+
 module.exports = {
   createProduct,
   getAllProducts,
