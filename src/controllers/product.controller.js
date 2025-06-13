@@ -3,19 +3,17 @@ const prisma = new PrismaClient();
 const fs = require('fs');
 const path = require('path');
 
-// --- 1. CREATE a new Product (Corrected) ---
+// --- 1. CREATE a new Product ---
 const createProduct = async (req, res) => {
-  // console.log('Request Body Received:', req.body);
-  // console.log('Request File Received:', req.file);
-
   try {
     const { name, description, price, oldPrice, quantity, category } = req.body;
-    const imageFile = req.file; 
-    const imagePath = imageFile.path.replace(/\\/g, "/")
+    const imageFile = req.file;
 
     if (!name || !price || !category || !imageFile) {
       return res.status(400).json({ success: false, message: 'Name, price, category, and image are required.' });
     }
+
+    const imagePath = imageFile.path.replace(/\\/g, "/");
 
     const newProduct = await prisma.product.create({
       data: {
@@ -37,26 +35,33 @@ const createProduct = async (req, res) => {
   }
 };
 
-// --- 2. READ all Products (No changes needed, it's good) ---
+// --- 2. READ all Products ---
 const getAllProducts = async (req, res) => {
-    try {
-        const products = await prisma.product.findMany({
-          orderBy: { createdAt: 'desc' },
-          include: { seller: { select: { email: true } } }
-        });
-        res.status(200).json({ success: true, data: products });
-    } catch (error) {
-        console.error("Get all products error:", error);
-        res.status(500).json({ success: false, message: 'Internal server error' });
-    }
+  try {
+    const products = await prisma.product.findMany({
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+    res.status(200).json({ success: true, data: products });
+  } catch (error) {
+    console.error("Get all products error:", error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
 };
 
-// --- 3. READ a single Product by ID (Corrected) ---
+// --- 3. READ a single Product by ID ---
 const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
+    const productId = parseInt(id, 10);
+
+    if (isNaN(productId)) {
+        return res.status(400).json({ success: false, message: 'Invalid product ID.' });
+    }
+
     const product = await prisma.product.findUnique({
-      where: { id: parseInt(id, 10) },
+      where: { id: productId },
     });
 
     if (!product) {
@@ -69,33 +74,39 @@ const getProductById = async (req, res) => {
   }
 };
 
-// --- UPDATE a Product by ID (Corrected) ---
+// --- 4. UPDATE a Product by ID ---
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, price, oldPrice, category, quantity } = req.body;
-    const updateData = {};
+    
+    const productId = parseInt(id, 10);
+    if (isNaN(productId)) {
+        return res.status(400).json({ success: false, message: 'Invalid product ID.' });
+    }
 
+    const updateData = {};
     if (name) updateData.name = name;
     if (description) updateData.description = description;
-    if (category) updateData.category = category; // FIX
+    if (category) updateData.category = category;
     if (price) updateData.price = parseFloat(price);
     if (oldPrice) updateData.oldPrice = parseFloat(oldPrice);
     if (quantity) updateData.quantity = parseInt(quantity, 10);
 
     if (req.file) {
-      updateData.image = req.file.path.replace(/\\/g, "/");
+      const imagePath = req.file.path.replace(/\\/g, "/");
+      updateData.image = imagePath;
 
-      const productToUpdate = await prisma.product.findUnique({ where: { id: parseInt(id, 10) } });
+      const productToUpdate = await prisma.product.findUnique({ where: { id: productId } });
       if (productToUpdate && productToUpdate.image) {
         fs.unlink(path.join(__dirname, '..', '..', productToUpdate.image), (err) => {
           if (err) console.error("Error deleting old image:", err);
         });
       }
     }
-
+    
     const updatedProduct = await prisma.product.update({
-      where: { id: parseInt(id, 10) },
+      where: { id: productId },
       data: updateData,
     });
 
@@ -106,24 +117,30 @@ const updateProduct = async (req, res) => {
   }
 };
 
-// --- DELETE a Product by ID (Corrected) ---
+// --- 5. DELETE a Product by ID ---
 const deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const productToDelete = await prisma.product.findUnique({ where: { id: parseInt(id, 10) } });
+    
+    const productId = parseInt(id, 10);
+    if (isNaN(productId)) {
+        return res.status(400).json({ success: false, message: 'Invalid product ID.' });
+    }
+
+    const productToDelete = await prisma.product.findUnique({ where: { id: productId } });
 
     if (!productToDelete) {
-      return res.status(404).json({ success: false, message: "Product not found" });
+        return res.status(404).json({ success: false, message: "Product not found" });
     }
 
     if (productToDelete.image) {
-      fs.unlink(path.join(__dirname, '..', '..', productToDelete.image), (err) => {
-        if (err) console.error("Error deleting product image file:", err);
-      });
+        fs.unlink(path.join(__dirname, '..', '..', productToDelete.image), (err) => {
+            if (err) console.error("Error deleting product image file:", err);
+        });
     }
 
     await prisma.product.delete({
-      where: { id: parseInt(id, 10) },
+      where: { id: productId },
     });
 
     res.status(200).json({ success: true, message: 'Product deleted successfully' });
@@ -133,10 +150,48 @@ const deleteProduct = async (req, res) => {
   }
 };
 
+// --- 6. SEARCH for Products ---
+const searchProducts = async (req, res) => {
+  try {
+    const { q } = req.query;
+
+    if (!q) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    const products = await prisma.product.findMany({
+      where: {
+        OR: [
+          {
+            name: {
+              contains: q,
+              mode: 'insensitive',
+            },
+          },
+          {
+            description: {
+              contains: q,
+              mode: 'insensitive',
+            },
+          },
+        ],
+      },
+      take: 10,
+    });
+
+    res.status(200).json({ success: true, data: products });
+  } catch (error) {
+    console.error("Search products error:", error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+
 module.exports = {
   createProduct,
   getAllProducts,
   getProductById,
   updateProduct,
   deleteProduct,
+  searchProducts,
 };

@@ -5,6 +5,7 @@ const {
   getProductById,
   updateProduct,
   deleteProduct,
+  searchProducts
 } = require('../controllers/product.controller');
 const { verifyToken, verifyAdmin } = require('../middleware/authMiddleware');
 const { upload } = require('../middleware/multer.config'); // multer config
@@ -15,6 +16,8 @@ const router = express.Router();
 router.get('/', getAllProducts);
 router.get('/:id', getProductById);
 
+// Search routes
+router.get('/search', searchProducts);
 // --- Admin-Only Routes ---
 
 router.post('/', verifyToken, verifyAdmin, upload.single('image'), createProduct);
