@@ -1,3 +1,5 @@
+// In src/controllers/product.controller.js
+
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { cloudinary } = require('../config/cloudinary.config');
@@ -11,19 +13,21 @@ const createProduct = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'Product image is required.' });
     }
+
+    // FIX: More accurate validation for required text fields
     if (!name || !price || !category) {
-      return res.status(400).json({ success: false, message: "Name, price, and category are required." });
+        return res.status(400).json({ success: false, message: "Name, price, and category are required." });
     }
     
     // Create the new product in the database
     const newProduct = await prisma.product.create({
       data: {
         name,
-        description: description || null,
+        description: description || null, // Handle optional description
         category,
         price: parseFloat(price),
-        oldPrice: oldPrice ? parseFloat(oldPrice) : null,
-        quantity: quantity ? parseInt(quantity, 10) : 1,
+        oldPrice: oldPrice ? parseFloat(oldPrice) : null, // Handle optional oldPrice
+        quantity: quantity ? parseInt(quantity, 10) : 1, // Handle optional quantity
         image: req.file.path, // The full URL from Cloudinary
         publicId: req.file.filename, // The unique public_id from Cloudinary
         sellerId: req.user.id, // The ID of the logged-in admin
@@ -32,7 +36,13 @@ const createProduct = async (req, res) => {
 
     res.status(201).json({ success: true, message: 'Product created successfully!', product: newProduct });
   } catch (error) {
-    console.error("Create product error:", error);
+    // FIX: Improved logging for better debugging in Render
+    console.error("--- Create Product Error ---", { 
+        message: error.message, 
+        stack: error.stack,
+        body: req.body,
+        file: req.file 
+    });
     // If the image was uploaded but the DB query failed, we should try to delete it
     if (req.file) {
         await cloudinary.uploader.destroy(req.file.filename);
@@ -52,7 +62,8 @@ const getAllProducts = async (req, res) => {
     });
     res.status(200).json({ success: true, data: products });
   } catch (error) {
-    console.error("Get all products error:", error);
+    // FIX: Improved logging
+    console.error("--- Get All Products Error ---", { message: error.message, stack: error.stack });
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
@@ -76,7 +87,8 @@ const getProductById = async (req, res) => {
     }
     res.status(200).json({ success: true, data: product });
   } catch (error) {
-    console.error("Get product by ID error:", error);
+    // FIX: Improved logging
+    console.error("--- Get Product By ID Error ---", { message: error.message, stack: error.stack, params: req.params });
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
@@ -115,7 +127,7 @@ const updateProduct = async (req, res) => {
         try {
           await cloudinary.uploader.destroy(existingProduct.publicId);
         } catch (cloudinaryError) {
-          console.error("Cloudinary Deletion Error:", cloudinaryError);
+          console.error("--- Cloudinary Deletion Error on Update ---", { message: cloudinaryError.message });
         }
       }
       updateData.image = req.file.path;
@@ -129,7 +141,13 @@ const updateProduct = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Product updated successfully!', product: updatedProduct });
   } catch (error) {
-    console.error("Update product error:", error);
+    // FIX: Improved logging
+    console.error("--- Update Product Error ---", { 
+        message: error.message, 
+        stack: error.stack,
+        body: req.body,
+        params: req.params
+    });
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
@@ -156,7 +174,8 @@ const deleteProduct = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Product deleted successfully' });
   } catch (error) {
-    console.error("Delete product error:", error);
+    // FIX: Improved logging
+    console.error("--- Delete Product Error ---", { message: error.message, stack: error.stack, params: req.params });
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
@@ -183,7 +202,8 @@ const searchProducts = async (req, res) => {
 
     res.status(200).json({ success: true, data: products });
   } catch (error) {
-    console.error("Search products error:", error);
+    // FIX: Improved logging
+    console.error("--- Search Products Error ---", { message: error.message, stack: error.stack, query: req.query });
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
