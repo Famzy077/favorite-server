@@ -43,6 +43,7 @@ model Product {
   price       Float
   oldPrice    Float?
   image       String
+  publicId    String?
   description String?
   category    String
   quantity    Int?     @default(1)

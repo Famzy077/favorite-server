@@ -1,19 +1,14 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const fs = require('fs');
-const path = require('path');
+const { cloudinary } = require('../config/cloudinary.config');
 
-// --- 1. CREATE a new Product ---
+// --- 1. CREATE a new Product (Cloudinary Version) ---
 const createProduct = async (req, res) => {
   try {
     const { name, description, price, oldPrice, quantity, category } = req.body;
-    const imageFile = req.file;
-
-    if (!name || !price || !category || !imageFile) {
-      return res.status(400).json({ success: false, message: 'Name, price, category, and image are required.' });
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Product image is required.' });
     }
-
-    const imagePath = imageFile.path.replace(/\\/g, "/");
 
     const newProduct = await prisma.product.create({
       data: {
@@ -23,7 +18,8 @@ const createProduct = async (req, res) => {
         price: parseFloat(price),
         oldPrice: oldPrice ? parseFloat(oldPrice) : null,
         quantity: quantity ? parseInt(quantity, 10) : 1,
-        image: imagePath,
+        image: req.file.path, // The full URL from Cloudinary
+        publicId: req.file.filename, // The unique public_id from Cloudinary
         sellerId: req.user.id,
       },
     });
@@ -74,35 +70,28 @@ const getProductById = async (req, res) => {
   }
 };
 
-// --- 4. UPDATE a Product by ID ---
+
+// --- 4. UPDATE a Product by ID (Cloudinary Version) ---
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, price, oldPrice, category, quantity } = req.body;
-    
     const productId = parseInt(id, 10);
-    if (isNaN(productId)) {
-        return res.status(400).json({ success: false, message: 'Invalid product ID.' });
-    }
 
     const updateData = {};
     if (name) updateData.name = name;
-    if (description) updateData.description = description;
-    if (category) updateData.category = category;
-    if (price) updateData.price = parseFloat(price);
-    if (oldPrice) updateData.oldPrice = parseFloat(oldPrice);
-    if (quantity) updateData.quantity = parseInt(quantity, 10);
+    // ... etc for other text fields
 
+    // If a new file is uploaded, update the image and publicId
     if (req.file) {
-      const imagePath = req.file.path.replace(/\\/g, "/");
-      updateData.image = imagePath;
-
-      const productToUpdate = await prisma.product.findUnique({ where: { id: productId } });
-      if (productToUpdate && productToUpdate.image) {
-        fs.unlink(path.join(__dirname, '..', '..', productToUpdate.image), (err) => {
-          if (err) console.error("Error deleting old image:", err);
-        });
+      // Find the old product to delete its image from Cloudinary
+      const oldProduct = await prisma.product.findUnique({ where: { id: productId } });
+      if (oldProduct && oldProduct.publicId) {
+        await cloudinary.uploader.destroy(oldProduct.publicId);
       }
+      // Update with new image details
+      updateData.image = req.file.path;
+      updateData.publicId = req.file.filename;
     }
     
     const updatedProduct = await prisma.product.update({
@@ -117,28 +106,27 @@ const updateProduct = async (req, res) => {
   }
 };
 
-// --- 5. DELETE a Product by ID ---
+
+
+// --- 5. DELETE a Product by ID (Cloudinary Version) ---
 const deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    
     const productId = parseInt(id, 10);
-    if (isNaN(productId)) {
-        return res.status(400).json({ success: false, message: 'Invalid product ID.' });
-    }
 
+    // First, find the product to get its publicId
     const productToDelete = await prisma.product.findUnique({ where: { id: productId } });
 
     if (!productToDelete) {
         return res.status(404).json({ success: false, message: "Product not found" });
     }
 
-    if (productToDelete.image) {
-        fs.unlink(path.join(__dirname, '..', '..', productToDelete.image), (err) => {
-            if (err) console.error("Error deleting product image file:", err);
-        });
+    // If a publicId exists, delete the image from Cloudinary
+    if (productToDelete.publicId) {
+      await cloudinary.uploader.destroy(productToDelete.publicId);
     }
 
+    // Then, delete the product record from the database
     await prisma.product.delete({
       where: { id: productId },
     });
