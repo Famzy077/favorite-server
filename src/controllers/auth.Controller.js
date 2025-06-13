@@ -8,93 +8,51 @@ const transporter = require('../config/mailer')
 
 // Initialize Prisma Client
 const prisma = new PrismaClient();
+
 const sendVerificationCode = async (req, res) => {
   try {
     const { email } = req.body;
-
     if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email is required',
-      });
+      return res.status(400).json({ success: false, message: 'Email is required' });
     }
-
     const code = Math.floor(1000 + Math.random() * 9000).toString();
-
-    // Store code in Redis with 10 min expiry
     await redisClient.setEx(`verify:${email}`, 600, code);
-
-    // Render EJS email template
-    const html = await ejs.renderFile(
-      path.join(__dirname, '../views/verification.ejs'),
-      { code }
-    );
-
-    // Send email
+    const html = await ejs.renderFile(path.join(__dirname, '../views/verification.ejs'), { code });
     await transporter.sendMail({
       from: `"Favorite Plug" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: 'Your Verification Code',
       html,
     });
-
-    const responsePayload = {
-      success: true,
-      message: 'Verification code sent successfully',
-    };
-
-    if (process.env.NODE_ENV === 'development') {
-      responsePayload.debug = { code };
-    }
-
-    res.status(200).json(responsePayload);
+    res.status(200).json({ success: true, message: 'Verification code sent successfully' });
   } catch (err) {
-    console.error('Error sending verification code:', err);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to send verification code',
-      error: err.message,
-    });
+    // FIX: Detailed logging
+    console.error("--- Send Verification Code Error ---", { message: err.message, stack: err.stack, body: req.body });
+    res.status(500).json({ success: false, message: 'Failed to send verification code' });
   }
 };
 
-// Verify submitted code
+// --- Verify Code ---
 const verifyCode = async (req, res) => {
   try {
     const { email, code } = req.body;
-
     if (!email || !code) {
       return res.status(400).json({ success: false, message: 'Email and code are required' });
     }
-
     const storedCode = await redisClient.get(`verify:${email}`);
-
     if (!storedCode) {
-      return res.status(410).json({ success: false, verified: false, message: 'Code expired or not found' });
+      return res.status(410).json({ success: false, message: 'Code expired or not found' });
     }
-
     if (storedCode !== code) {
-      return res.status(401).json({ success: false, verified: false, message: 'Invalid verification code' });
+      return res.status(401).json({ success: false, message: 'Invalid verification code' });
     }
-
-    // Code is valid - set verification flag with 10 min expiry
     await redisClient.setEx(`verified:${email}`, 600, 'true');
-    await redisClient.del(`verify:${email}`); // Clean up the code
-
-    res.status(200).json({ 
-      success: true, 
-      verified: true, 
-      message: 'Verification successful',
-      email // Include email in response
-    });
+    await redisClient.del(`verify:${email}`);
+    res.status(200).json({ success: true, verified: true, message: 'Verification successful' });
   } catch (err) {
-    console.error('Error verifying code:', err);
-    res.status(500).json({
-      success: false,
-      verified: false,
-      message: 'Verification failed due to server error',
-      error: err.message,
-    });
+    // FIX: Detailed logging
+    console.error("--- Verify Code Error ---", { message: err.message, stack: err.stack, body: req.body });
+    res.status(500).json({ success: false, message: 'Verification failed' });
   }
 };
 
@@ -214,7 +172,7 @@ const createAccount = async (req, res) => {
     console.log('Account created:', user);
 
   } catch (error) {
-    console.error('Account creation error:', error);
+    console.error('Account creation error:', error)
 
     // Handle Prisma unique constraint error
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -225,14 +183,17 @@ const createAccount = async (req, res) => {
         });
       }
     }
+    console.error("--- Create Account Error ---", { message: error.message, stack: error.stack, body: req.body });
+    res.status(500).json({ success: false, message: 'Internal server error' });   
 
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
   }
 };
+
+
+
+
+
+
 
 // LOGIN - User login
 const login = async (req, res) => {
@@ -298,12 +259,9 @@ const login = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Login error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Login failed due to server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-    });
+    
+    console.error("--- Login Error ---", { message: error.message, stack: error.stack, body: req.body });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 
@@ -559,7 +517,7 @@ const forgotPassword = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'If a user with that email exists, a password reset link has been sent.' });
   } catch (error) {
-    console.error('Forgot password error:', error);
+    console.error("--- Forgot Password Error ---", { message: error.message, stack: error.stack, body: req.body });
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
@@ -567,32 +525,23 @@ const forgotPassword = async (req, res) => {
 const resetPassword = async (req, res) => {
   try {
     const { token, newPassword } = req.body;
-
     if (!token || !newPassword) {
       return res.status(400).json({ success: false, message: 'Token and new password are required.' });
     }
 
-    // Verify the token
-    let decoded;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (err) {
-      return res.status(401).json({ success: false, message: 'Invalid or expired token.' });
-    }
-
-    // Hash the new password
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const hashedPassword = await bcrypt.hash(newPassword, 12);
-
-    // Update the user's password in the database
     await prisma.user.update({
       where: { id: decoded.userId },
       data: { password: hashedPassword },
     });
-
     res.status(200).json({ success: true, message: 'Password has been reset successfully.' });
-
   } catch (error) {
-    console.error('Reset password error:', error);
+    // FIX: Detailed logging
+    console.error("--- Reset Password Error ---", { message: error.message, stack: error.stack });
+    if (error instanceof jwt.JsonWebTokenError || error instanceof jwt.TokenExpiredError) {
+        return res.status(401).json({ success: false, message: 'Invalid or expired token.' });
+    }
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
