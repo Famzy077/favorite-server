@@ -1,21 +1,22 @@
-// In src/controllers/product.controller.js
-
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { cloudinary } = require('../config/cloudinary.config');
 
 // --- 1. CREATE a new Product (Polished Version) ---
-
 const createProduct = async (req, res) => {
-  console.log("Cloudinary File:", req.file);
+  console.log("📦 req.file:", JSON.stringify(req.file, null, 2));
+  console.log("📦 req.file:", req.file);
+
+
   try {
     const { name, description, price, oldPrice, quantity, category } = req.body;
     
-    // Check for the uploaded file from Cloudinary first
+    // Check for the uploaded file first
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'Product image is required.' });
     }
 
+    // More specific validation for required text fields
     if (!name || !price || !category) {
         return res.status(400).json({ success: false, message: "Name, price, and category are required." });
     }
@@ -24,32 +25,36 @@ const createProduct = async (req, res) => {
     const newProduct = await prisma.product.create({
       data: {
         name,
-        description: description || null, // Handle optional description
+        description: description || null,
         category,
         price: parseFloat(price),
-        oldPrice: oldPrice ? parseFloat(oldPrice) : null, // Handle optional oldPrice
-        quantity: quantity ? parseInt(quantity, 10) : 1, // Handle optional quantity
-        image: req.file.path,  // The full URL from Cloudinary
-        // publicId: req.file.filename, // The unique public_id from Cloudinary
-        publicId: req.file.public_id || req.file.filename,
-        sellerId: req.user.id, // The ID of the logged-in admin
+        oldPrice: oldPrice ? parseFloat(oldPrice) : null,
+        quantity: quantity ? parseInt(quantity, 10) : 1,
+        image: req.file.path,       // Full URL from Cloudinary
+        publicId: req.file.filename,  // Unique ID from Cloudinary
+        sellerId: req.user.id,      // The ID of the logged-in admin
       },
     });
 
     res.status(201).json({ success: true, message: 'Product created successfully!', product: newProduct });
   } catch (error) {
-    console.error("--- Create Product Error ---", { 
-        message: error.message, 
-        stack: error.stack,
-        body: req.body,
-        file: req.file 
+    // --- THIS IS THE MOST IMPORTANT PART ---
+    // This detailed log will show the real error in your Render console
+    console.log("--- CREATE PRODUCT CRASH ---", { 
+        errorMessage: error.message, 
+        errorStack: error.stack,
+        requestBody: req.body,
+        requestFile: req.file 
+    });
 
-        
-      });
-      console.log("Cloudinary File:", req.file);
-    // If the image was uploaded but the DB query failed, we should try to delete it
+    // If the database query failed after the image was uploaded, we should delete the orphaned image from Cloudinary
     if (req.file) {
-        await cloudinary.uploader.destroy(req.file.filename);
+        try {
+            await cloudinary.uploader.destroy(req.file.filename);
+            console.log("Orphaned image deleted from Cloudinary:", req.file.filename);
+        } catch (cloudinaryError) {
+            console.log("Failed to delete orphaned image from Cloudinary:", cloudinaryError);
+        }
     }
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
@@ -100,6 +105,9 @@ const getProductById = async (req, res) => {
 
 // --- 4. UPDATE a Product by ID (Cloudinary Version) ---
 const updateProduct = async (req, res) => {
+  console.log("📦 req.file:", JSON.stringify(req.file, null, 2));
+
+
   try {
     const { id } = req.params;
     const productId = parseInt(id, 10);
@@ -123,7 +131,8 @@ const updateProduct = async (req, res) => {
     if (description) updateData.description = description;
     if (category) updateData.category = category;
     if (price) updateData.price = parseFloat(price);
-    if (oldPrice) updateData.oldPrice = parseFloat(oldPrice);
+    // Allow setting oldPrice to null or empty
+    if (oldPrice !== undefined) updateData.oldPrice = oldPrice ? parseFloat(oldPrice) : null;
     if (quantity) updateData.quantity = parseInt(quantity, 10);
 
     if (req.file) {
@@ -131,7 +140,7 @@ const updateProduct = async (req, res) => {
         try {
           await cloudinary.uploader.destroy(existingProduct.publicId);
         } catch (cloudinaryError) {
-          console.error("--- Cloudinary Deletion Error on Update ---", { message: cloudinaryError.message });
+          console.error("Cloudinary Deletion Error on Update:", cloudinaryError);
         }
       }
       updateData.image = req.file.path;
@@ -145,16 +154,16 @@ const updateProduct = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Product updated successfully!', product: updatedProduct });
   } catch (error) {
-    // FIX: Improved logging
-    console.error("--- Update Product Error ---", { 
-        message: error.message, 
-        stack: error.stack,
-        body: req.body,
-        params: req.params
+    // Detailed logging for the update function
+    console.error("--- UPDATE PRODUCT CRASH ---", {
+      errorMessage: error.message,
+      errorStack: error.stack,
+      requestParams: req.params,
+      requestBody: req.body,
     });
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
-};
+;}
 
 // --- 5. DELETE a Product by ID (Cloudinary Version) ---
 const deleteProduct = async (req, res) => {
