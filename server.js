@@ -70,7 +70,6 @@ app.options('/api/wishlist', cors(corsOptions))
 app.use('/api/cart', cartRoutes);
 app.options('/api/cart', cors(corsOptions))
 
-
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.listen(5000, () => {

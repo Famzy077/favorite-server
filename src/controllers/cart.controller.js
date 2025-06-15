@@ -27,9 +27,10 @@ const getCart = async (req, res) => {
           include: {
             product: true, // Include all product details for each cart item
           },
-          orderBy: {
-            createdAt: 'asc',
-          },
+          // --- THE FIX IS HERE: The orderBy clause has been removed ---
+          // orderBy: {
+          //   createdAt: 'asc',
+          // },
         },
       },
     });
