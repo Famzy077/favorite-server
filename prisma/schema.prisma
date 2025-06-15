@@ -22,6 +22,7 @@ model User {
   userDetails UserDetails?
   products    Product[]
   wishlistItems WishlistItem[]
+  cart        Cart?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
@@ -53,6 +54,29 @@ model Product {
   seller   User   @relation(fields: [sellerId], references: [id])
   sellerId String
   wishlistedBy WishlistItem[] 
+  cartItems    CartItem[]
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String     @unique // Each user has only one cart
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  quantity  Int      @default(1)
+  
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  cartId    String
+  
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId Int
+
+  @@unique([cartId, productId])
 }
 
 model WishlistItem {
