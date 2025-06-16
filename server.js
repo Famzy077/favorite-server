@@ -82,8 +82,8 @@ app.use('/api/cart', cartRoutes);
 app.options('/api/cart', cors(corsOptions))
 
 // Order route
-app.use('/api/order', orderRoutes);
-app.options('/api/order', cors(corsOptions))
+app.use('/api/orders', orderRoutes);
+app.options('/api/orders', cors(corsOptions))
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
