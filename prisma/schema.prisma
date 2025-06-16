@@ -13,18 +13,19 @@ enum Role {
 }
 
 model User {
-  id          String       @id @default(uuid())
-  email       String       @unique
-  password    String
-  role        Role         @default(USER)
-  isBlocked   Boolean      @default(false)
-  verified    Boolean      @default(false)
-  userDetails UserDetails?
-  products    Product[]
+  id            String       @id @default(uuid())
+  email         String       @unique
+  password      String
+  role          Role         @default(USER)
+  isBlocked     Boolean      @default(false)
+  verified      Boolean      @default(false)
+  userDetails   UserDetails?
+  products      Product[]
   wishlistItems WishlistItem[]
-  cart        Cart?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  cart          Cart?
+  orders        Order[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 }
 
 model UserDetails {
@@ -39,22 +40,30 @@ model UserDetails {
 }
 
 model Product {
-  id          Int      @id @default(autoincrement())
-  name        String
-  price       Float
-  oldPrice    Float?
-  image       String
-  publicId    String?
-  description String?
-  category    String
-  quantity    Int?     @default(1)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  seller   User   @relation(fields: [sellerId], references: [id])
-  sellerId String
-  wishlistedBy WishlistItem[] 
+  id           Int      @id @default(autoincrement())
+  name         String
+  price        Float
+  oldPrice     Float?
+  description  String?
+  category     String
+  quantity     Int?     @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  images       ProductImage[]
+  seller       User           @relation(fields: [sellerId], references: [id])
+  sellerId     String
+  wishlistedBy WishlistItem[]
   cartItems    CartItem[]
+  orderItems   OrderItem[]
+}
+
+model ProductImage {
+  id        Int      @id @default(autoincrement())
+  url       String
+  publicId  String?  // The Cloudinary public_id for this image
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId Int
 }
 
 model Cart {
@@ -82,7 +91,6 @@ model CartItem {
 model WishlistItem {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
-
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
   
@@ -90,4 +98,29 @@ model WishlistItem {
   productId Int
 
   @@unique([userId, productId])
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+  items           OrderItem[]
+  totalAmount     Float
+  
+  shippingAddress String
+  contactPhone    String
+
+  status          String      @default("PENDING")
+  createdAt       DateTime    @default(now())
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId   String
+  product   Product @relation(fields: [productId], references: [id])
+  productId Int
+  
+  quantity  Int
+  price     Float   // Price of the product at the time of order
 }

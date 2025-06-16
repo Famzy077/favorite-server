@@ -537,7 +537,6 @@ const resetPassword = async (req, res) => {
     });
     res.status(200).json({ success: true, message: 'Password has been reset successfully.' });
   } catch (error) {
-    // FIX: Detailed logging
     console.error("--- Reset Password Error ---", { message: error.message, stack: error.stack });
     if (error instanceof jwt.JsonWebTokenError || error instanceof jwt.TokenExpiredError) {
         return res.status(401).json({ success: false, message: 'Invalid or expired token.' });

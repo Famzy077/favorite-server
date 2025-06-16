@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+        h1 { color: #0056b3; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: middle; }
+        th { background-color: #f2f2f2; }
+        .footer { margin-top: 20px; font-size: 0.8em; text-align: center; color: #777; }
+        .product-image { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; margin-right: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>New Order Received!</h1>
+        <p>A new order has been placed on Favorite Plug.</p>
+        
+        <h2>Order Details</h2>
+        <p><strong>Order ID:</strong> <%= order.id %></p>
+        <p><strong>Total Amount:</strong> ₦<%= totalAmount.toLocaleString() %></p>
+        <p><strong>Status:</strong> <%= order.status %></p>
+        
+        <h2>Customer Information</h2>
+        <% if (customer.userDetails && customer.userDetails.fullName) { %>
+            <p><strong>Name:</strong> <%= customer.userDetails.fullName %></p>
+        <% } %>
+        <p><strong>Email:</strong> <%= customer.email %></p>
+        <p><strong>Contact Phone:</strong> <%= order.contactPhone %></p>
+        <p><strong>Shipping Address:</strong> <%= order.shippingAddress %></p>
+        
+        <h2>Items Ordered</h2>
+        <table>
+            <thead>
+                <tr>
+                    <!-- FIX: Added Image column -->
+                    <th colspan="2">Product</th>
+                    <th>Quantity</th>
+                    <th>Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% cartItems.forEach(function(item) { %>
+                    <tr>
+                        <td>
+                            <!-- FIX: Display the first product image -->
+                            <% if (item.product.images && item.product.images.length > 0) { %>
+                                <img src="<%= item.product.images[0].url %>" alt="<%= item.product.name %>" class="product-image">
+                            <% } %>
+                        </td>
+                        <td><%= item.product.name %></td>
+                        <td><%= item.quantity %></td>
+                        <td>₦<%= (item.product.price * item.quantity).toLocaleString() %></td>
+                    </tr>
+                <% }); %>
+            </tbody>
+        </table>
+
+        <div class="footer">
+            <p>Please process this order as soon as possible.</p>
+        </div>
+    </div>
+</body>
+</html>

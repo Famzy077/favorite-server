@@ -5,24 +5,35 @@ const adminRoutes = require('./src/routes/admin/admin.Routes.js')
 const productRoutes = require('./src/routes/product.routes');
 const wishListRoutes = require('./src/routes/wishlist.routes.js');
 const cartRoutes = require('./src/routes/cart.routes.js');
+const orderRoutes = require('./src/routes/order.Routes.js')
 const cors = require('cors')
 const app = express();
 app.use(express.json());
-// const ejs = require('ejs')
+const ejs = require('ejs')
 const path = require('path');
 
-// // Set EJS as the view engine
-// app.set('view engine', 'ejs');
-// // Set the views directory
-// app.set('views', path.join(__dirname, 'views'));
+// Set EJS as the view engine
+app.set('view engine', 'ejs');
+// Set the views directory
+app.set('views', path.join(__dirname, '/src/views'));
 
-// // Static files (e.g., CSS if needed)
-// app.use(express.static(path.join(__dirname, 'public')));
+// Static files (e.g., CSS if needed)
+app.use(express.static(path.join(__dirname, 'public')));
 
-// // ✅ Route to test the email template
-// app.get('/test-verification', (req, res) => {
-//   const mockCode = '1234'; // Mock verification code
-//   res.render('verification', { code: mockCode });
+// ✅ Route to test the email template
+// To fix the test route, provide mock data
+// app.get('/test-email', (req, res) => {
+//   const mockOrder = { id: 'test-123', status: 'PENDING', contactPhone: '080...', shippingAddress: '...' };
+//   const mockCustomer = { email: 'test@example.com' };
+//   const mockCartItems = [{ product: { name: 'Test Product', price: 100 }, quantity: 2 }];
+//   const mockTotal = 200;
+
+//   res.render('new-order-notification', {
+//       order: mockOrder,
+//       customer: mockCustomer,
+//       cartItems: mockCartItems,
+//       totalAmount: mockTotal
+//   });
 // });
 
 // app.get('/welcome', async (req, res) => {
@@ -69,6 +80,10 @@ app.options('/api/wishlist', cors(corsOptions))
 // Cart route
 app.use('/api/cart', cartRoutes);
 app.options('/api/cart', cors(corsOptions))
+
+// Order route
+app.use('/api/order', orderRoutes);
+app.options('/api/order', cors(corsOptions))
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
