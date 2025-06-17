@@ -1,3 +1,5 @@
+// In src/controllers/product.controller.js
+
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { cloudinary } = require('../config/cloudinary.config');
