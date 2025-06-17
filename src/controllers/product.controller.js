@@ -6,15 +6,18 @@ const { cloudinary } = require('../config/cloudinary.config');
 
 // Helper function to add a display image for the frontend
 const addDisplayImage = (product) => {
-    if (product.images && product.images.length > 0) {
+    if (product && product.images && product.images.length > 0) {
         return { ...product, image: product.images[0].url };
     }
-    return { ...product, image: '/path/to/your/default/placeholder.png' };
+    // Provide a generic fallback path for products without images
+    return { ...product, image: '/default-placeholder.png' };
 };
 
 
-// --- CREATE a new Product ---
+// --- 1. CREATE a new Product (with Definitive Logging) ---
 const createProduct = async (req, res) => {
+  // This is our "proof-of-life" log. If we see this, the new code is running.
+  console.log("--- CREATE PRODUCT FUNCTION ENTERED V5 ---"); 
   try {
     const { name, description, price, oldPrice, quantity, category } = req.body;
     const files = req.files;
@@ -52,20 +55,28 @@ const createProduct = async (req, res) => {
 
     res.status(201).json({ success: true, message: 'Product created successfully!', product: addDisplayImage(newProductWithImages) });
   } catch (error) {
-    console.error("--- CREATE PRODUCT CRASH ---", { errorMessage: error.message, errorStack: error.stack });
+    // This detailed log will now show the real error
+    console.error("--- CREATE PRODUCT CRASH ---", { 
+        errorMessage: error.message, 
+        errorStack: error.stack,
+        requestBody: req.body,
+        requestFiles: req.files 
+    });
+
     if (req.files) {
-      req.files.forEach(async (file) => {
-        try { await cloudinary.uploader.destroy(file.filename); }
-        catch (e) { console.error("Failed to delete orphaned image from Cloudinary:", e); }
-      });
+        req.files.forEach(async (file) => {
+            try { await cloudinary.uploader.destroy(file.filename); }
+            catch (e) { console.error("Failed to delete orphaned image from Cloudinary:", e); }
+        });
     }
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 
 
-// --- UPDATE a Product (Final, Robust Version) ---
+// --- 4. UPDATE a Product (with Definitive Logging) ---
 const updateProduct = async (req, res) => {
+  // This is our "proof-of-life" log.
   console.log("--- UPDATE PRODUCT FUNCTION ENTERED V5 ---");
   try {
     const { id } = req.params;
@@ -78,7 +89,6 @@ const updateProduct = async (req, res) => {
     const files = req.files;
 
     const updatedProduct = await prisma.$transaction(async (tx) => {
-      // 1. Update the product's text fields first
       const product = await tx.product.update({
         where: { id: productId },
         data: {
@@ -91,25 +101,14 @@ const updateProduct = async (req, res) => {
         },
       });
 
-      // 2. If new images were uploaded, replace the old ones
       if (files && files.length > 0) {
-        // First, find all old images
-        const oldImages = await tx.productImage.findMany({
-          where: { productId: productId },
-        });
-
-        // If old images exist, delete them from Cloudinary
+        const oldImages = await tx.productImage.findMany({ where: { productId: productId } });
         if (oldImages.length > 0) {
-          const publicIds = oldImages.map(img => img.publicId);
-          await cloudinary.api.delete_resources(publicIds);
+          const publicIds = oldImages.map(img => img.publicId).filter(id => id);
+          if (publicIds.length > 0) { await cloudinary.api.delete_resources(publicIds); }
         }
+        await tx.productImage.deleteMany({ where: { productId: productId } });
 
-        // Delete the old image records from the database
-        await tx.productImage.deleteMany({
-          where: { productId: productId },
-        });
-
-        // Create new image records for the new files
         const imageCreations = files.map(file => 
           tx.productImage.create({
             data: { productId: productId, url: file.path, publicId: file.filename }
@@ -118,7 +117,6 @@ const updateProduct = async (req, res) => {
         await Promise.all(imageCreations);
       }
       
-      // Return the fully updated product with its new images
       return tx.product.findUnique({
           where: { id: product.id },
           include: { images: true }
@@ -127,14 +125,14 @@ const updateProduct = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Product updated successfully!', product: addDisplayImage(updatedProduct) });
   } catch (error) {
-    console.error("--- UPDATE PRODUCT CRASH ---", { errorMessage: error.message, errorStack: error.stack });
+    console.error("--- UPDATE PRODUCT CRASH ---", { errorMessage: error.message, errorStack: error.stack, requestBody: req.body });
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 
 
 // --- Your other functions (getAllProducts, deleteProduct, etc.) ---
-// Please ensure they have the detailed logging in their catch blocks as well.
+// Please ensure they have detailed logging in their catch blocks as well.
 const getAllProducts = async (req, res) => {
     try {
         const productsFromDb = await prisma.product.findMany({
@@ -144,7 +142,7 @@ const getAllProducts = async (req, res) => {
         const products = productsFromDb.map(addDisplayImage);
         res.status(200).json({ success: true, data: products });
     } catch (error) {
-        console.error("--- Get All Products Error ---", { errorMessage: error.message });
+        console.error("--- Get All Products Error ---", { errorMessage: error.message, stack: error.stack });
         res.status(500).json({ success: false, message: 'Internal server error' });
     }
 };
@@ -164,7 +162,7 @@ const getProductById = async (req, res) => {
         const product = addDisplayImage(productFromDb);
         res.status(200).json({ success: true, data: product });
     } catch (error) {
-        console.error("--- Get Product By ID Error ---", { errorMessage: error.message });
+        console.error("--- Get Product By ID Error ---", { errorMessage: error.message, stack: error.stack });
         res.status(500).json({ success: false, message: 'Internal server error' });
     }
 };
@@ -191,7 +189,7 @@ const deleteProduct = async (req, res) => {
         await prisma.product.delete({ where: { id: productId } });
         res.status(200).json({ success: true, message: 'Product deleted successfully' });
     } catch (error) {
-        console.error("--- Delete Product Error ---", { errorMessage: error.message });
+        console.error("--- Delete Product Error ---", { errorMessage: error.message, stack: error.stack });
         res.status(500).json({ success: false, message: 'Internal server error' });
     }
 };
@@ -209,7 +207,7 @@ const searchProducts = async (req, res) => {
         const products = productsFromDb.map(addDisplayImage);
         res.status(200).json({ success: true, data: products });
     } catch (error) {
-        console.error("--- Search Products Error ---", { errorMessage: error.message });
+        console.error("--- Search Products Error ---", { errorMessage: error.message, stack: error.stack });
         res.status(500).json({ success: false, message: 'Internal server error' });
     }
 };
