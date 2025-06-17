@@ -81,7 +81,7 @@ app.options('/api/wishlist', cors(corsOptions))
 app.use('/api/cart', cartRoutes);
 app.options('/api/cart', cors(corsOptions))
 
-// Order route
+// Orders route
 app.use('/api/orders', orderRoutes);
 app.options('/api/orders', cors(corsOptions))
 
