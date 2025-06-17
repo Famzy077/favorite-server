@@ -85,7 +85,7 @@ app.options('/api/cart', cors(corsOptions))
 app.use('/api/orders', orderRoutes);
 app.options('/api/orders', cors(corsOptions))
 
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'src/uploads')));
 
 app.listen(5000, () => {
   console.log('Server running on port 5000');
