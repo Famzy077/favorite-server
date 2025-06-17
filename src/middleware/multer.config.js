@@ -15,7 +15,7 @@ const path = require('path');
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     // Make sure you have an 'uploads' folder in your project's root directory
-    cb(null, 'uploads/');
+    cb(null, 'src/uploads/');
   },
   filename: function (req, file, cb) {
     cb(null, Date.now() + path.extname(file.originalname));
