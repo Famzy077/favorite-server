@@ -236,7 +236,7 @@ const { cloudinary } = require('../config/cloudinary.config');
 
 // --- 1. CREATE a new Product with Multiple Images ---
 const createProduct = async (req, res) => {
-  console.log("--- CREATE (Multi-Image) FUNCTION ENTERED ---");
+  // console.log("--- CREATE (Multi-Image) FUNCTION ENTERED ---");
   try {
     const { name, description, price, oldPrice, quantity, category } = req.body;
     
@@ -301,9 +301,11 @@ const createProduct = async (req, res) => {
 const getAllProducts = async (req, res) => {
   try {
     const products = await prisma.product.findMany({
-      orderBy: { createdAt: 'desc' },
+      orderBy: {
+        createdAt: 'desc',
+      },
       include: {
-        images: true, // IMPORTANT: Include the related images
+        images: true, 
       },
     });
     res.status(200).json({ success: true, data: products });
@@ -313,11 +315,12 @@ const getAllProducts = async (req, res) => {
   }
 };
 
-// --- 3. READ a single Product by ID with its images ---
+// --- 3 READ a single Product by ID (with Images) ---
 const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
     const productId = parseInt(id, 10);
+
     if (isNaN(productId)) {
         return res.status(400).json({ success: false, message: 'Invalid product ID.' });
     }
@@ -325,7 +328,7 @@ const getProductById = async (req, res) => {
     const product = await prisma.product.findUnique({
       where: { id: productId },
       include: {
-        images: true, // IMPORTANT: Include the related images
+        images: true,
       },
     });
 
@@ -341,7 +344,6 @@ const getProductById = async (req, res) => {
 
 
 // --- 4. UPDATE a Product (This is now a more complex operation) ---
-// This example only adds new images. A full update would also handle removing specific old images.
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
@@ -428,7 +430,7 @@ const deleteProduct = async (req, res) => {
   }
 };
 
-// Search input controller
+// --- Search Product (with Images) ---
 const searchProducts = async (req, res) => {
   try {
     const { q } = req.query;
@@ -446,12 +448,14 @@ const searchProducts = async (req, res) => {
         ],
       },
       take: 10,
+      include: {
+        images: true,
+      },
     });
 
     res.status(200).json({ success: true, data: products });
   } catch (error) {
-    // FIX: Improved logging
-    console.error("--- Search Products Error ---", { message: error.message, stack: error.stack, query: req.query });
+    console.error("--- Search Products Error ---", { message: error.message });
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
