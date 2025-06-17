@@ -12,14 +12,10 @@ const addDisplayImage = (product) => {
     return { ...product, image: '/path/to/your/default/placeholder.png' };
 };
 
-
 // --- 1. CREATE a new Product with Multiple Images ---
 const createProduct = async (req, res) => {
-  console.log("--- CREATE (Multi-Image) FUNCTION ENTERED ---");
   try {
     const { name, description, price, oldPrice, quantity, category } = req.body;
-    
-    // Multer now provides an array of files in `req.files`
     const files = req.files;
 
     if (!files || files.length === 0) {
@@ -30,8 +26,8 @@ const createProduct = async (req, res) => {
     }
     
     // Use a transaction to ensure either everything succeeds or nothing does
-    const newProduct = await prisma.$transaction(async (tx) => {
-      // First, create the product with its text data
+    const newProductWithImages = await prisma.$transaction(async (tx) => {
+      // First, create the product
       const product = await tx.product.create({
         data: {
           name,
@@ -45,26 +41,29 @@ const createProduct = async (req, res) => {
       });
 
       // Then, create the ProductImage records for each uploaded image
-      const imageCreations = files.map(file => {
-        return tx.productImage.create({
+      const imageCreations = files.map(file => 
+        tx.productImage.create({
           data: {
             productId: product.id,
             url: file.path,
             publicId: file.filename,
           }
-        });
-      });
+        })
+      );
       
       // Wait for all image records to be created
       await Promise.all(imageCreations);
 
-      return product;
+      // Return the product with its newly created images
+      return tx.product.findUnique({
+          where: { id: product.id },
+          include: { images: true }
+      });
     });
 
-    res.status(201).json({ success: true, message: 'Product created successfully!', product: newProduct });
+    res.status(201).json({ success: true, message: 'Product created successfully!', product: addDisplayImage(newProductWithImages) });
   } catch (error) {
     console.error("--- CREATE PRODUCT CRASH ---", { errorMessage: error.message, errorStack: error.stack });
-    // If an error occurs, try to delete any images that might have been uploaded to Cloudinary
     if (req.files) {
       req.files.forEach(async (file) => {
         try { await cloudinary.uploader.destroy(file.filename); }
@@ -75,7 +74,6 @@ const createProduct = async (req, res) => {
   }
 };
 
-
 // --- 2. READ all Products with their images ---
 const getAllProducts = async (req, res) => {
   try {
@@ -83,10 +81,7 @@ const getAllProducts = async (req, res) => {
       orderBy: { createdAt: 'desc' },
       include: { images: true },
     });
-
-    // We now transform the data before sending it to the frontend.
     const products = productsFromDb.map(addDisplayImage);
-
     res.status(200).json({ success: true, data: products });
   } catch (error) {
     console.error("--- Get All Products Error ---", { message: error.message });
@@ -227,7 +222,7 @@ const searchProducts = async (req, res) => {
       take: 10,
       include: { images: true },
     });
-    
+
     const products = productsFromDb.map(addDisplayImage);
 
     res.status(200).json({ success: true, data: products });

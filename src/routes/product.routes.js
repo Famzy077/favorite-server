@@ -22,8 +22,8 @@ router.get('/', getAllProducts);       // Get all products
 router.get('/:id', getProductById); // Get a single product
 
 // --- Admin-Only Routes (Protected) ---
-router.post('/', verifyToken, verifyAdmin, upload.single('image'), createProduct);
-router.put('/:id', verifyToken, verifyAdmin, upload.single('image'), updateProduct);
+router.post('/', verifyToken, verifyAdmin, upload.array('images', 5), createProduct);
+router.put('/:id', verifyToken, verifyAdmin, upload.array('images', 5), updateProduct);
 router.delete('/:id', verifyToken, verifyAdmin, deleteProduct);
 
 module.exports = router;
