@@ -20,7 +20,6 @@ app.set('views', path.join(__dirname, '/src/views'));
 // Static files (e.g., CSS if needed)
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ✅ Route to test the email template
 // To fix the test route, provide mock data
 // app.get('/test-email', (req, res) => {
 //   const mockOrder = { id: 'test-123', status: 'PENDING', contactPhone: '080...', shippingAddress: '...' };
