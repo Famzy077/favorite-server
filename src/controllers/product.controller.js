@@ -96,9 +96,10 @@ const updateProduct = async (req, res) => {
             // Delete old image files from disk safely
             oldImages.forEach(img => {
                 if (img.url) {
-                    const oldImagePath = path.join(__dirname, '..', '..', img.url);
                     // --- THE FIX IS HERE ---
-                    // First, check if the file exists before trying to delete it.
+                    // This creates a more reliable path from the project's root directory
+                    const oldImagePath = path.join(process.cwd(), img.url);
+                    
                     if (fs.existsSync(oldImagePath)) {
                         fs.unlink(oldImagePath, (err) => {
                             if (err) console.error("Error deleting old image file:", err);
@@ -184,7 +185,7 @@ const deleteProduct = async (req, res) => {
         // Also add the safety check here
         productToDelete.images.forEach(img => {
             if (img.url) {
-                const imagePath = path.join(__dirname, '..', '..', img.url);
+                const imagePath = path.join(process.cwd(), img.url);
                 if (fs.existsSync(imagePath)) {
                     fs.unlink(imagePath, (err) => {
                         if (err) console.error("Error deleting product image file:", err);
@@ -227,4 +228,3 @@ module.exports = {
   deleteProduct,
   searchProducts,
 };
-
