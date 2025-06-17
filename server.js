@@ -59,28 +59,28 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Auth route
+// Auth routes
 app.use('/api/auth', authRoutes);
 app.options('/api/auth', cors(corsOptions));
-// User route
+// User routes
 app.use('/api/user-details', userDetailsRoutes);
 app.options('/api/user-details', cors(corsOptions));
-// Admin route
+// Admin routes
 app.use('/api/admin', adminRoutes)
 app.options('/api/admin', cors(corsOptions));
-// products route
+// products routes
 app.use('/api/products', productRoutes);
 app.options('/api/products', cors(corsOptions))
 
-// wishlist route
+// wishlist routes
 app.use('/api/wishlist', wishListRoutes);
 app.options('/api/wishlist', cors(corsOptions))
 
-// Cart route
+// Cart routes
 app.use('/api/cart', cartRoutes);
 app.options('/api/cart', cors(corsOptions))
 
-// Orders route
+// Orders routes
 app.use('/api/orders', orderRoutes);
 app.options('/api/orders', cors(corsOptions))
 
