@@ -2,21 +2,20 @@
 
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const fs = require('fs'); // We need the file system module for local file handling
-const path = require('path');
+const { cloudinary } = require('../config/cloudinary.config');
 
 // Helper function to add a display image for the frontend
 const addDisplayImage = (product) => {
+    // This function ensures the frontend always has a consistent 'image' property to use.
     if (product && product.images && product.images.length > 0) {
         return { ...product, image: product.images[0].url };
     }
+    // Provide a generic fallback path for products that might not have an image
     return { ...product, image: '/default-placeholder.png' };
 };
 
-
-// --- CREATE a new Product (Local Storage Version) ---
+// --- CREATE a new Product with Multiple Images ---
 const createProduct = async (req, res) => {
-  console.log("--- CREATE (Local Test) FUNCTION ENTERED ---");
   try {
     const { name, description, price, oldPrice, quantity, category } = req.body;
     const files = req.files;
@@ -31,7 +30,9 @@ const createProduct = async (req, res) => {
     const newProductWithImages = await prisma.$transaction(async (tx) => {
       const product = await tx.product.create({
         data: {
-          name, description: description || null, category,
+          name,
+          description: description || null,
+          category,
           price: parseFloat(price),
           oldPrice: oldPrice ? parseFloat(oldPrice) : null,
           quantity: quantity ? parseInt(quantity, 10) : 1,
@@ -41,11 +42,11 @@ const createProduct = async (req, res) => {
 
       const imageCreations = files.map(file => 
         tx.productImage.create({
-          data: { 
-              productId: product.id, 
-              url: file.path.replace(/\\/g, "/"), // Save normalized local path
-              publicId: null // No publicId for local files
-            }
+          data: {
+            productId: product.id,
+            url: file.path,       // Full URL from Cloudinary
+            publicId: file.filename,  // Unique ID from Cloudinary
+          }
         })
       );
       await Promise.all(imageCreations);
@@ -58,15 +59,20 @@ const createProduct = async (req, res) => {
 
     res.status(201).json({ success: true, message: 'Product created successfully!', product: addDisplayImage(newProductWithImages) });
   } catch (error) {
-    console.error("--- CREATE PRODUCT CRASH (Local) ---", { errorMessage: error.message, errorStack: error.stack });
+    console.error("--- CREATE PRODUCT CRASH ---", { errorMessage: error.message, errorStack: error.stack });
+    if (req.files) {
+      req.files.forEach(async (file) => {
+        try { await cloudinary.uploader.destroy(file.filename); }
+        catch (e) { console.error("Failed to delete orphaned image from Cloudinary:", e); }
+      });
+    }
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 
 
-// --- UPDATE a Product (Local Storage Version - With Fix) ---
+// --- UPDATE a Product with Multiple Images ---
 const updateProduct = async (req, res) => {
-  console.log("--- UPDATE (Local Test) FUNCTION ENTERED ---");
   try {
     const { id } = req.params;
     const productId = parseInt(id, 10);
@@ -78,64 +84,54 @@ const updateProduct = async (req, res) => {
     const files = req.files;
 
     const updatedProduct = await prisma.$transaction(async (tx) => {
-        const product = await tx.product.update({
-            where: { id: productId },
-            data: {
-              name: name || undefined,
-              description: description || undefined,
-              price: price ? parseFloat(price) : undefined,
-              oldPrice: oldPrice !== undefined ? (oldPrice ? parseFloat(oldPrice) : null) : undefined,
-              category: category || undefined,
-              quantity: quantity ? parseInt(quantity, 10) : undefined,
-            },
-        });
+      const product = await tx.product.update({
+        where: { id: productId },
+        data: {
+          name: name || undefined,
+          description: description || undefined,
+          price: price ? parseFloat(price) : undefined,
+          oldPrice: oldPrice !== undefined ? (oldPrice ? parseFloat(oldPrice) : null) : undefined,
+          category: category || undefined,
+          quantity: quantity ? parseInt(quantity, 10) : undefined,
+        },
+      });
 
-        if (files && files.length > 0) {
-            const oldImages = await tx.productImage.findMany({ where: { productId: productId } });
-            
-            // Delete old image files from disk safely
-            oldImages.forEach(img => {
-                if (img.url) {
-                    // --- THE FIX IS HERE ---
-                    // This creates a more reliable path from the project's root directory
-                    const oldImagePath = path.join(process.cwd(), img.url);
-                    
-                    if (fs.existsSync(oldImagePath)) {
-                        fs.unlink(oldImagePath, (err) => {
-                            if (err) console.error("Error deleting old image file:", err);
-                        });
-                    }
-                }
-            });
-
-            await tx.productImage.deleteMany({ where: { productId: productId } });
-
-            const imageCreations = files.map(file => 
-              tx.productImage.create({
-                data: {
-                    productId: productId,
-                    url: file.path.replace(/\\/g, "/"),
-                }
-              })
-            );
-            await Promise.all(imageCreations);
-        }
+      // If new images were uploaded, this replaces all old images
+      if (files && files.length > 0) {
+        const oldImages = await tx.productImage.findMany({ where: { productId: productId } });
         
-        return tx.product.findUnique({
-            where: { id: product.id },
-            include: { images: true }
-        });
+        if (oldImages.length > 0) {
+          const publicIds = oldImages.map(img => img.publicId).filter(id => id);
+          if (publicIds.length > 0) {
+            await cloudinary.api.delete_resources(publicIds);
+          }
+        }
+
+        await tx.productImage.deleteMany({ where: { productId: productId } });
+
+        const imageCreations = files.map(file => 
+          tx.productImage.create({
+            data: { productId: productId, url: file.path, publicId: file.filename }
+          })
+        );
+        await Promise.all(imageCreations);
+      }
+      
+      return tx.product.findUnique({
+          where: { id: product.id },
+          include: { images: true }
+      });
     });
 
     res.status(200).json({ success: true, message: 'Product updated successfully!', product: addDisplayImage(updatedProduct) });
   } catch (error) {
-    console.error("--- UPDATE PRODUCT CRASH (Local) ---", { errorMessage: error.message, errorStack: error.stack });
+    console.error("--- UPDATE PRODUCT CRASH ---", { errorMessage: error.message, errorStack: error.stack });
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 
 
-// --- Other functions ---
+// --- Your other functions ---
 const getAllProducts = async (req, res) => {
     try {
         const productsFromDb = await prisma.product.findMany({
@@ -182,17 +178,12 @@ const deleteProduct = async (req, res) => {
         });
         if (!productToDelete) { return res.status(404).json({ success: false, message: "Product not found" }); }
 
-        // Also add the safety check here
-        productToDelete.images.forEach(img => {
-            if (img.url) {
-                const imagePath = path.join(process.cwd(), img.url);
-                if (fs.existsSync(imagePath)) {
-                    fs.unlink(imagePath, (err) => {
-                        if (err) console.error("Error deleting product image file:", err);
-                    });
-                }
+        if (productToDelete.images && productToDelete.images.length > 0) {
+            const publicIds = productToDelete.images.map(image => image.publicId).filter(id => id);
+            if (publicIds.length > 0) {
+                await cloudinary.api.delete_resources(publicIds);
             }
-        });
+        }
         
         await prisma.product.delete({ where: { id: productId } });
         res.status(200).json({ success: true, message: 'Product deleted successfully' });
