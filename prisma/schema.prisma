@@ -34,7 +34,7 @@ model UserDetails {
   phone     String?
   address   String?
   userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -107,6 +107,7 @@ model Order {
   items           OrderItem[]
   totalAmount     Float
   
+  customerName    String      // NEW: Added this field to store the name from the form
   shippingAddress String
   contactPhone    String
 
