@@ -1,134 +1,135 @@
-// In src/controllers/product.controller.js
-
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { cloudinary } = require('../config/cloudinary.config');
 
+const fs = require('fs'); // We need the file system module for local file handling
+const path = require('path');
+
 // Helper function to add a display image for the frontend
-const addDisplayImage = (product) => {
-    if (product && product.images && product.images.length > 0) {
-        return { ...product, image: product.images[0].url };
-    }
-    // Provide a generic fallback path for products without images
-    return { ...product, image: '/default-placeholder.png' };
-};
+// const addDisplayImage = (product) => {
+//     if (product && product.images && product.images.length > 0) {
+//         return { ...product, image: product.images[0].url };
+//     }
+//     // Provide a generic fallback path for products without images
+//     return { ...product, image: '/default-placeholder.png' };
+// };
 
 
 // --- 1. CREATE a new Product (with Definitive Logging) ---
-const createProduct = async (req, res) => {
-  // This is our "proof-of-life" log. If we see this, the new code is running.
-  console.log("--- CREATE PRODUCT FUNCTION ENTERED V5 ---"); 
-  try {
-    const { name, description, price, oldPrice, quantity, category } = req.body;
-    const files = req.files;
+// const createProduct = async (req, res) => {
+//   // This is our "proof-of-life" log. If we see this, the new code is running.
+//   console.log("--- CREATE PRODUCT FUNCTION ENTERED V5 ---"); 
+//   try {
+//     const { name, description, price, oldPrice, quantity, category } = req.body;
+//     const files = req.files;
 
-    if (!files || files.length === 0) {
-      return res.status(400).json({ success: false, message: 'At least one product image is required.' });
-    }
-    if (!name || !price || !category) {
-      return res.status(400).json({ success: false, message: "Name, price, and category are required." });
-    }
+//     if (!files || files.length === 0) {
+//       return res.status(400).json({ success: false, message: 'At least one product image is required.' });
+//     }
+//     if (!name || !price || !category) {
+//       return res.status(400).json({ success: false, message: "Name, price, and category are required." });
+//     }
     
-    const newProductWithImages = await prisma.$transaction(async (tx) => {
-      const product = await tx.product.create({
-        data: {
-          name, description: description || null, category,
-          price: parseFloat(price),
-          oldPrice: oldPrice ? parseFloat(oldPrice) : null,
-          quantity: quantity ? parseInt(quantity, 10) : 1,
-          sellerId: req.user.id,
-        },
-      });
+//     const newProductWithImages = await prisma.$transaction(async (tx) => {
+//       const product = await tx.product.create({
+//         data: {
+//           name, description: description || null, category,
+//           price: parseFloat(price),
+//           oldPrice: oldPrice ? parseFloat(oldPrice) : null,
+//           quantity: quantity ? parseInt(quantity, 10) : 1,
+//           sellerId: req.user.id,
+//         },
+//       });
 
-      const imageCreations = files.map(file => 
-        tx.productImage.create({
-          data: { productId: product.id, url: file.path, publicId: file.filename }
-        })
-      );
-      await Promise.all(imageCreations);
+//       const imageCreations = files.map(file => 
+//         tx.productImage.create({
+//           data: { productId: product.id, url: file.path, publicId: file.filename }
+//         })
+//       );
+//       await Promise.all(imageCreations);
 
-      return tx.product.findUnique({
-          where: { id: product.id },
-          include: { images: true }
-      });
-    });
+//       return tx.product.findUnique({
+//           where: { id: product.id },
+//           include: { images: true }
+//       });
+//     });
 
-    res.status(201).json({ success: true, message: 'Product created successfully!', product: addDisplayImage(newProductWithImages) });
-  } catch (error) {
-    // This detailed log will now show the real error
-    console.error("--- CREATE PRODUCT CRASH ---", { 
-        errorMessage: error.message, 
-        errorStack: error.stack,
-        requestBody: req.body,
-        requestFiles: req.files 
-    });
+//     res.status(201).json({ success: true, message: 'Product created successfully!', product: addDisplayImage(newProductWithImages) });
+//   } catch (error) {
+//     // This detailed log will now show the real error
+//     console.error("--- CREATE PRODUCT CRASH ---", { 
+//         errorMessage: error.message, 
+//         errorStack: error.stack,
+//         requestBody: req.body,
+//         requestFiles: req.files 
+//     });
 
-    if (req.files) {
-        req.files.forEach(async (file) => {
-            try { await cloudinary.uploader.destroy(file.filename); }
-            catch (e) { console.error("Failed to delete orphaned image from Cloudinary:", e); }
-        });
-    }
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-};
+//     if (req.files) {
+//         req.files.forEach(async (file) => {
+//             try { await cloudinary.uploader.destroy(file.filename); }
+//             catch (e) { console.error("Failed to delete orphaned image from Cloudinary:", e); }
+//         });
+//     }
+//     res.status(500).json({ success: false, message: 'Internal server error' });
+//   }
+// };
 
 
-// --- 4. UPDATE a Product (with Definitive Logging) ---
-const updateProduct = async (req, res) => {
-  // This is our "proof-of-life" log.
-  console.log("--- UPDATE PRODUCT FUNCTION ENTERED V5 ---");
-  try {
-    const { id } = req.params;
-    const productId = parseInt(id, 10);
-    if (isNaN(productId)) {
-      return res.status(400).json({ success: false, message: "Invalid product ID." });
-    }
+// // --- 4. UPDATE a Product (with Definitive Logging) ---
+// const updateProduct = async (req, res) => {
+//   // This is our "proof-of-life" log.
+//   console.log("--- UPDATE PRODUCT FUNCTION ENTERED V5 ---");
+//   try {
+//     const { id } = req.params;
+//     const productId = parseInt(id, 10);
+//     if (isNaN(productId)) {
+//       return res.status(400).json({ success: false, message: "Invalid product ID." });
+//     }
 
-    const { name, description, price, oldPrice, category, quantity } = req.body;
-    const files = req.files;
+//     const { name, description, price, oldPrice, category, quantity } = req.body;
+//     const files = req.files;
 
-    const updatedProduct = await prisma.$transaction(async (tx) => {
-      const product = await tx.product.update({
-        where: { id: productId },
-        data: {
-          name: name || undefined,
-          description: description || undefined,
-          price: price ? parseFloat(price) : undefined,
-          oldPrice: oldPrice !== undefined ? (oldPrice ? parseFloat(oldPrice) : null) : undefined,
-          category: category || undefined,
-          quantity: quantity ? parseInt(quantity, 10) : undefined,
-        },
-      });
+//     const updatedProduct = await prisma.$transaction(async (tx) => {
+//       const product = await tx.product.update({
+//         where: { id: productId },
+//         data: {
+//           name: name || undefined,
+//           description: description || undefined,
+//           price: price ? parseFloat(price) : undefined,
+//           oldPrice: oldPrice !== undefined ? (oldPrice ? parseFloat(oldPrice) : null) : undefined,
+//           category: category || undefined,
+//           quantity: quantity ? parseInt(quantity, 10) : undefined,
+//         },
+//       });
 
-      if (files && files.length > 0) {
-        const oldImages = await tx.productImage.findMany({ where: { productId: productId } });
-        if (oldImages.length > 0) {
-          const publicIds = oldImages.map(img => img.publicId).filter(id => id);
-          if (publicIds.length > 0) { await cloudinary.api.delete_resources(publicIds); }
-        }
-        await tx.productImage.deleteMany({ where: { productId: productId } });
+//       if (files && files.length > 0) {
+//         const oldImages = await tx.productImage.findMany({ where: { productId: productId } });
+//         if (oldImages.length > 0) {
+//           const publicIds = oldImages.map(img => img.publicId).filter(id => id);
+//           if (publicIds.length > 0) { await cloudinary.api.delete_resources(publicIds); }
+//         }
+//         await tx.productImage.deleteMany({ where: { productId: productId } });
 
-        const imageCreations = files.map(file => 
-          tx.productImage.create({
-            data: { productId: productId, url: file.path, publicId: file.filename }
-          })
-        );
-        await Promise.all(imageCreations);
-      }
+//         const imageCreations = files.map(file => 
+//           tx.productImage.create({
+//             data: { productId: productId, url: file.path, publicId: file.filename }
+//           })
+//         );
+//         await Promise.all(imageCreations);
+//       }
       
-      return tx.product.findUnique({
-          where: { id: product.id },
-          include: { images: true }
-      });
-    });
+//       return tx.product.findUnique({
+//           where: { id: product.id },
+//           include: { images: true }
+//       });
+//     });
 
-    res.status(200).json({ success: true, message: 'Product updated successfully!', product: addDisplayImage(updatedProduct) });
-  } catch (error) {
-    console.error("--- UPDATE PRODUCT CRASH ---", { errorMessage: error.message, errorStack: error.stack, requestBody: req.body });
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-};
+//     res.status(200).json({ success: true, message: 'Product updated successfully!', product: addDisplayImage(updatedProduct) });
+//   } catch (error) {
+//     console.error("--- UPDATE PRODUCT CRASH ---", { errorMessage: error.message, errorStack: error.stack, requestBody: req.body });
+//     res.status(500).json({ success: false, message: 'Internal server error' });
+//   }
+// };
 
 
 // --- Your other functions (getAllProducts, deleteProduct, etc.) ---
@@ -211,6 +212,139 @@ const searchProducts = async (req, res) => {
         res.status(500).json({ success: false, message: 'Internal server error' });
     }
 };
+
+
+
+
+
+// Helper function to add a display image for the frontend
+const addDisplayImage = (product) => {
+    // For local files, the 'image' property is on the ProductImage model's 'url' field
+    if (product && product.images && product.images.length > 0) {
+        return { ...product, image: product.images[0].url };
+    }
+    return { ...product, image: '/default-placeholder.png' };
+};
+
+
+// --- CREATE a new Product (Local Storage Version) ---
+const createProduct = async (req, res) => {
+  console.log("--- CREATE (Local Test) FUNCTION ENTERED ---");
+  try {
+    const { name, description, price, oldPrice, quantity, category } = req.body;
+    const files = req.files;
+
+    if (!files || files.length === 0) {
+      return res.status(400).json({ success: false, message: 'At least one product image is required.' });
+    }
+    if (!name || !price || !category) {
+      return res.status(400).json({ success: false, message: "Name, price, and category are required." });
+    }
+    
+    const newProductWithImages = await prisma.$transaction(async (tx) => {
+      const product = await tx.product.create({
+        data: {
+          name, description: description || null, category,
+          price: parseFloat(price),
+          oldPrice: oldPrice ? parseFloat(oldPrice) : null,
+          quantity: quantity ? parseInt(quantity, 10) : 1,
+          sellerId: req.user.id,
+        },
+      });
+
+      const imageCreations = files.map(file => 
+        tx.productImage.create({
+          data: { 
+              productId: product.id, 
+              url: file.path.replace(/\\/g, "/"), // Save normalized local path
+              publicId: null // No publicId for local files
+            }
+        })
+      );
+      await Promise.all(imageCreations);
+
+      return tx.product.findUnique({
+          where: { id: product.id },
+          include: { images: true }
+      });
+    });
+
+    res.status(201).json({ success: true, message: 'Product created successfully!', product: addDisplayImage(newProductWithImages) });
+  } catch (error) {
+    console.error("--- CREATE PRODUCT CRASH (Local) ---", { errorMessage: error.message, errorStack: error.stack });
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+
+// --- UPDATE a Product (Local Storage Version) ---
+const updateProduct = async (req, res) => {
+  console.log("--- UPDATE (Local Test) FUNCTION ENTERED ---");
+  try {
+    const { id } = req.params;
+    const productId = parseInt(id, 10);
+    if (isNaN(productId)) {
+      return res.status(400).json({ success: false, message: "Invalid product ID." });
+    }
+
+    const { name, description, price, oldPrice, category, quantity } = req.body;
+    const files = req.files;
+
+    const updatedProduct = await prisma.$transaction(async (tx) => {
+        const product = await tx.product.update({
+            where: { id: productId },
+            data: {
+              name: name || undefined,
+              description: description || undefined,
+              price: price ? parseFloat(price) : undefined,
+              oldPrice: oldPrice !== undefined ? (oldPrice ? parseFloat(oldPrice) : null) : undefined,
+              category: category || undefined,
+              quantity: quantity ? parseInt(quantity, 10) : undefined,
+            },
+        });
+
+        if (files && files.length > 0) {
+            // This logic now deletes all old images and replaces them
+            const oldImages = await tx.productImage.findMany({ where: { productId: productId } });
+            
+            // Delete old image files from disk
+            oldImages.forEach(img => {
+                if (img.url) {
+                    fs.unlink(path.join(__dirname, '..', '..', img.url), (err) => {
+                        if (err) console.error("Error deleting old image file:", err);
+                    });
+                }
+            });
+
+            // Delete old image records from DB
+            await tx.productImage.deleteMany({ where: { productId: productId } });
+
+            // Create new image records for the new files
+            const imageCreations = files.map(file => 
+              tx.productImage.create({
+                data: {
+                    productId: productId,
+                    url: file.path.replace(/\\/g, "/"),
+                }
+              })
+            );
+            await Promise.all(imageCreations);
+        }
+        
+        return tx.product.findUnique({
+            where: { id: product.id },
+            include: { images: true }
+        });
+    });
+
+    res.status(200).json({ success: true, message: 'Product updated successfully!', product: addDisplayImage(updatedProduct) });
+  } catch (error) {
+    console.error("--- UPDATE PRODUCT CRASH (Local) ---", { errorMessage: error.message, errorStack: error.stack });
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+
 
 module.exports = {
   createProduct,
