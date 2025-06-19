@@ -1,25 +1,34 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-// GET all items from the logged-in user's wishlist
-exports.getWishlist = async (req, res) => {
+// --- GET all items from the logged-in user's wishlist (Corrected) ---
+const getWishlist = async (req, res) => {
     const userId = req.user.id;
     try {
         const wishlistItems = await prisma.wishlistItem.findMany({
             where: { userId },
-            include: { product: true }, // Include the full product details
+            include: {
+                product: {
+                    include: {
+                        images: true,
+                    }
+                },
+            },
             orderBy: { createdAt: 'desc' }
         });
-        // We only want to return the product data
+        
+
         const products = wishlistItems.map(item => item.product);
+
         res.status(200).json({ success: true, data: products });
     } catch (error) {
+        console.error("--- Get Wishlist Error ---", { message: error.message, stack: error.stack });
         res.status(500).json({ success: false, message: 'Internal server error' });
     }
 };
 
-// ADD an item to the wishlist
-exports.addToWishlist = async (req, res) => {
+// --- ADD an item to the wishlist ---
+const addToWishlist = async (req, res) => {
     const userId = req.user.id;
     const { productId } = req.body;
 
@@ -29,22 +38,23 @@ exports.addToWishlist = async (req, res) => {
         });
         res.status(201).json({ success: true, message: 'Product added to wishlist.', data: wishlistItem });
     } catch (error) {
-        if (error.code === 'P2002') { // Handles duplicate items
+        if (error.code === 'P2002') {
             return res.status(409).json({ success: false, message: 'Product already in wishlist.' });
         }
+        console.error("--- Add to Wishlist Error ---", { message: error.message });
         res.status(500).json({ success: false, message: 'Internal server error' });
     }
 };
 
-// REMOVE an item from the wishlist
-exports.removeFromWishlist = async (req, res) => {
+// --- REMOVE an item from the wishlist ---
+const removeFromWishlist = async (req, res) => {
     const userId = req.user.id;
     const { productId } = req.params;
 
     try {
         await prisma.wishlistItem.delete({
             where: {
-                userId_productId: { // This is the unique key we defined in the schema
+                userId_productId: {
                     userId,
                     productId: parseInt(productId, 10)
                 }
@@ -52,6 +62,13 @@ exports.removeFromWishlist = async (req, res) => {
         });
         res.status(200).json({ success: true, message: 'Product removed from wishlist.' });
     } catch (error) {
+        console.error("--- Remove From Wishlist Error ---", { message: error.message });
         res.status(500).json({ success: false, message: 'Could not remove product from wishlist.' });
     }
+};
+
+module.exports = {
+    getWishlist,
+    addToWishlist,
+    removeFromWishlist,
 };

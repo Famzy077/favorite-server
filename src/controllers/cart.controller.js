@@ -16,7 +16,7 @@ const getOrCreateCart = async (userId) => {
   return cart;
 };
 
-// --- GET the user's cart ---
+// --- GET the user's cart (Corrected and Final Version) ---
 const getCart = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -25,18 +25,17 @@ const getCart = async (req, res) => {
       include: {
         items: {
           include: {
-            product: true, // Include all product details for each cart item
+            product: {
+              include: {
+                images: true,
+              }
+            },
           },
-          // --- THE FIX IS HERE: The orderBy clause has been removed ---
-          // orderBy: {
-          //   createdAt: 'asc',
-          // },
         },
       },
     });
 
     if (!cart) {
-      // If user has no cart yet, return a clean empty cart structure
       return res.status(200).json({ success: true, data: { items: [], total: 0 } });
     }
     
@@ -45,18 +44,28 @@ const getCart = async (req, res) => {
         return sum + item.product.price * item.quantity;
     }, 0);
 
-    res.status(200).json({ success: true, data: { ...cart, total } });
+    const cartItemsWithImages = cart.items.map(item => ({
+      ...item,
+      product: {
+        ...item.product,
+        // Use the first image as the display image, with a fallback
+        image: item.product.images && item.product.images.length > 0 ? item.product.images[0].url : '/default-placeholder.png'
+      }
+    }));
+
+    res.status(200).json({ success: true, data: { ...cart, items: cartItemsWithImages, total } });
   } catch (error) {
     console.error("--- Get Cart Error ---", { message: error.message, stack: error.stack });
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 
+
 // --- ADD an item to the cart ---
 const addItemToCart = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { productId, quantity = 1 } = req.body; // Default quantity to 1 if not provided
+    const { productId, quantity = 1 } = req.body;
 
     if (!productId) {
       return res.status(400).json({ success: false, message: "Product ID is required." });
@@ -75,13 +84,11 @@ const addItemToCart = async (req, res) => {
 
     let cartItem;
     if (existingItem) {
-      // If item exists, update its quantity
       cartItem = await prisma.cartItem.update({
         where: { id: existingItem.id },
         data: { quantity: existingItem.quantity + quantity },
       });
     } else {
-      // If item doesn't exist, create a new cart item
       cartItem = await prisma.cartItem.create({
         data: {
           cartId: cart.id,
@@ -93,7 +100,7 @@ const addItemToCart = async (req, res) => {
 
     res.status(201).json({ success: true, message: 'Item added to cart.', data: cartItem });
   } catch (error) {
-    console.error("--- Add Item to Cart Error ---", { message: error.message, stack: error.stack });
+    console.error("--- Add Item to Cart Error ---", { message: error.message });
     res.status(500).json({ success: false, message: 'Failed to add item to cart.' });
   }
 };
@@ -126,7 +133,7 @@ const updateCartItemQuantity = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Cart item updated.', data: updatedItem });
   } catch (error) {
-    console.error("--- Update Cart Item Error ---", { message: error.message, stack: error.stack });
+    console.error("--- Update Cart Item Error ---", { message: error.message });
     res.status(500).json({ success: false, message: 'Failed to update cart item.' });
   }
 };
@@ -153,7 +160,7 @@ const removeCartItem = async (req, res) => {
         
         res.status(200).json({ success: true, message: 'Item removed from cart.' });
     } catch (error) {
-        console.error("--- Remove Cart Item Error ---", { message: error.message, stack: error.stack });
+        console.error("--- Remove Cart Item Error ---", { message: error.message });
         res.status(500).json({ success: false, message: 'Failed to remove item from cart.' });
     }
 };
@@ -173,7 +180,7 @@ const clearCart = async (req, res) => {
 
         res.status(200).json({ success: true, message: 'Cart cleared successfully.' });
     } catch (error) {
-        console.error("--- Clear Cart Error ---", { message: error.message, stack: error.stack });
+        console.error("--- Clear Cart Error ---", { message: error.message });
         res.status(500).json({ success: false, message: 'Failed to clear cart.' });
     }
 };
