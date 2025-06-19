@@ -1,6 +1,10 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Confirmation</title>
+</head>
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
@@ -11,24 +15,20 @@
         .footer { margin-top: 20px; font-size: 0.8em; text-align: center; color: #777; }
         .product-image { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; margin-right: 10px; }
     </style>
-</head>
 <body>
     <div class="container">
-        <h1>New Order Received!</h1>
-        <p>A new order has been placed on Favorite Plug. Please process it promptly.</p>
+        <h1>Thank You for Your Order, <%= order.customerName %>!</h1>
+        <p>We've received your order and will begin processing it shortly. You can find the details below.</p>
         
-        <h2>Order Details</h2>
+        <h2>Order Summary</h2>
         <p><strong>Order ID:</strong> <%= order.id %></p>
         <p><strong>Total Amount:</strong> ₦<%= totalAmount.toLocaleString() %></p>
         <p><strong>Payment Method:</strong> <%= order.paymentMethod.replace('_', ' ') %></p>
         
-        <h2>Customer Information</h2>
-        <p><strong>Name:</strong> <%= order.customerName %></p>
-        <p><strong>Email:</strong> <%= customer.email %></p>
-        <p><strong>Contact Phone:</strong> <%= order.contactPhone %></p>
-        <p><strong>Shipping Address:</strong> <%= order.shippingAddress %></p>
+        <h2>Shipping To</h2>
+        <p><%= order.shippingAddress %></p>
         
-        <h2>Items Ordered</h2>
+        <h2>Items in Your Order</h2>
         <table>
             <thead>
                 <tr>
@@ -52,9 +52,8 @@
                 <% }); %>
             </tbody>
         </table>
-
         <div class="footer">
-            <p>Please process this order as soon as possible.</p>
+            <p>We'll notify you again once your order has shipped. Thank you for shopping with Favorite Plug!</p>
         </div>
     </div>
 </body>

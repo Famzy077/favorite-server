@@ -2,16 +2,15 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const transporter = require('../config/mailer');
 const ejs = require('ejs');
-const path = require('path');
+const path =require('path');
 
-// --- CREATE a new Order from the user's cart ---
 const createOrder = async (req, res) => {
   const userId = req.user.id;
   try {
-    const { shippingAddress, contactPhone, fullName } = req.body;
+    const { shippingAddress, contactPhone, fullName, paymentMethod } = req.body;
 
-    if (!shippingAddress || !contactPhone || !fullName) {
-      return res.status(400).json({ success: false, message: "Full name, shipping address, and phone number are required." });
+    if (!shippingAddress || !contactPhone || !fullName || !paymentMethod) {
+      return res.status(400).json({ success: false, message: "All delivery and payment details are required." });
     }
 
     const cart = await prisma.cart.findUnique({
@@ -28,11 +27,9 @@ const createOrder = async (req, res) => {
     const order = await prisma.$transaction(async (tx) => {
       const newOrder = await tx.order.create({
         data: {
-          userId,
-          totalAmount,
-          shippingAddress,
-          contactPhone,
-          customerName: fullName, // Save the customer's name with the order
+          userId, totalAmount, shippingAddress, contactPhone,
+          customerName: fullName,
+          paymentMethod: paymentMethod,
           status: "PENDING"
         }
       });
@@ -50,23 +47,44 @@ const createOrder = async (req, res) => {
       return newOrder;
     });
 
-    try {
-      const adminEmail = process.env.EMAIL_USER;
-      const customer = await prisma.user.findUnique({ where: { id: userId } });
-      
-      const emailHtml = await ejs.renderFile(
-          path.join(__dirname, '../views/new-order-notification.ejs'),
-          { order, customer, cartItems: cart.items, totalAmount }
-      );
+    // --- EMAIL NOTIFICATION LOGIC ---
+    const customer = await prisma.user.findUnique({ where: { id: userId } });
 
-      await transporter.sendMail({
-          from: `"Favorite Plug" <${adminEmail}>`,
-          to: adminEmail,
-          subject: `New Order Received! #${order.id.slice(-6)}`,
-          html: emailHtml,
-      });
+    // 1. Notify all Admins
+    try {
+      const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } });
+      const adminEmails = admins.map(admin => admin.email);
+
+      if (adminEmails.length > 0) {
+        const adminHtml = await ejs.renderFile(
+            path.join(__dirname, '../views/admin-new-order.ejs'),
+            { order, customer, cartItems: cart.items, totalAmount }
+        );
+        await transporter.sendMail({
+            from: `"Favorite Plug" <${process.env.EMAIL_USER}>`,
+            to: adminEmails.join(','), // Send to a comma-separated list of admins
+            subject: `[ADMIN] New Order Received! #${order.id.slice(-6)}`,
+            html: adminHtml,
+        });
+      }
     } catch (emailError) {
-      console.error("--- Failed to send new order email notification ---", emailError);
+      console.error("--- Failed to send ADMIN order notification ---", emailError);
+    }
+
+    // 2. Send confirmation to the Customer
+    try {
+        const customerHtml = await ejs.renderFile(
+            path.join(__dirname, '../views/customer-order-confirmation.ejs'),
+            { order, customer, cartItems: cart.items, totalAmount }
+        );
+        await transporter.sendMail({
+            from: `"Favorite Plug" <${process.env.EMAIL_USER}>`,
+            to: customer.email,
+            subject: `Your Favorite Plug Order is Confirmed! #${order.id.slice(-6)}`,
+            html: customerHtml,
+        });
+    } catch (emailError) {
+        console.error("--- Failed to send CUSTOMER order confirmation ---", emailError);
     }
 
     res.status(201).json({ success: true, message: "Order placed successfully!", order });
@@ -116,7 +134,7 @@ const getOrderById = async (req, res) => {
 const updateOrderStatus = async (req, res) => {
     try {
         const { id } = req.params;
-        const { status } = req.body; // e.g., "SHIPPED", "DELIVERED", "CANCELLED"
+        const { status } = req.body;
 
         if (!status) {
             return res.status(400).json({ success: false, message: "Status is required." });

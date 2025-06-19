@@ -107,11 +107,13 @@ model Order {
   items           OrderItem[]
   totalAmount     Float
   
-  customerName    String      // NEW: Added this field to store the name from the form
+  customerName    String
   shippingAddress String
   contactPhone    String
 
   status          String      @default("PENDING")
+  // --- THE FIX IS HERE ---
+  paymentMethod   String      @default("PAY_ON_DELIVERY") // Set a default value
   createdAt       DateTime    @default(now())
 }
 
