@@ -4,6 +4,7 @@ const transporter = require('../config/mailer');
 const ejs = require('ejs');
 const path =require('path');
 
+
 const createOrder = async (req, res) => {
   const userId = req.user.id;
   try {
@@ -56,13 +57,14 @@ const createOrder = async (req, res) => {
       const adminEmails = admins.map(admin => admin.email);
 
       if (adminEmails.length > 0) {
-        const adminHtml = await ejs.renderFile(
-            path.join(__dirname, '../views/admin-new-order.ejs'),
-            { order, customer, cartItems: cart.items, totalAmount }
-        );
+        const adminTemplatePath = path.resolve(process.cwd(), 'src/views/admin-new-order.ejs');
+        const adminHtml = await ejs.renderFile(adminTemplatePath, { 
+            order, customer, cartItems: cart.items, totalAmount 
+        });
+
         await transporter.sendMail({
             from: `"Favorite Plug" <${process.env.EMAIL_USER}>`,
-            to: adminEmails.join(','), // Send to a comma-separated list of admins
+            to: adminEmails.join(','),
             subject: `[ADMIN] New Order Received! #${order.id.slice(-6)}`,
             html: adminHtml,
         });
@@ -73,10 +75,11 @@ const createOrder = async (req, res) => {
 
     // 2. Send confirmation to the Customer
     try {
-        const customerHtml = await ejs.renderFile(
-            path.join(__dirname, '../views/customer-order-confirmation.ejs'),
-            { order, customer, cartItems: cart.items, totalAmount }
-        );
+        const customerTemplatePath = path.resolve(process.cwd(), 'src/views/customer-order-confirmation.ejs');
+        const customerHtml = await ejs.renderFile(customerTemplatePath, { 
+            order, customer, cartItems: cart.items, totalAmount 
+        });
+
         await transporter.sendMail({
             from: `"Favorite Plug" <${process.env.EMAIL_USER}>`,
             to: customer.email,
@@ -93,7 +96,6 @@ const createOrder = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error." });
   }
 };
-
 
 // --- GET all orders (for Admin) ---
 const getAllOrders = async (req, res) => {
