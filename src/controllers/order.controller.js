@@ -145,6 +145,33 @@ const updateOrderStatus = async (req, res) => {
             data: { status }
         });
 
+        // If the new status is "SHIPPED", send an email to the customer.
+        if (updatedOrder.status === 'SHIPPED') {
+            try {
+                // We need the customer's email, so we fetch the user associated with the order.
+                const customer = await prisma.user.findUnique({
+                    where: { id: updatedOrder.userId }
+                });
+
+                if (customer) {
+                    const emailHtml = await ejs.renderFile(
+                        path.join(__dirname, '../views/customer-shipped-notification.ejs'),
+                        { order: updatedOrder, customer } // Pass the updated order details
+                    );
+
+                    await transporter.sendMail({
+                        from: `"Favorite Plug" <${process.env.EMAIL_USER}>`,
+                        to: customer.email,
+                        subject: `Your Favorite Plug Order Has Shipped! #${updatedOrder.id.slice(-6)}`,
+                        html: emailHtml,
+                    });
+                }
+            } catch (emailError) {
+                // Don't crash the main request if the email fails, just log it.
+                console.error("--- Failed to send SHIPPED notification email ---", emailError);
+            }
+        }
+
         res.status(200).json({ success: true, message: `Order status updated to ${status}.`, data: updatedOrder });
     } catch (error) {
         console.error("--- Update Order Status Error ---", { message: error.message });

@@ -1,0 +1,30 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+        h1 { color: #2a9d8f; } /* A nice green for "shipped" */
+        .highlight { background-color: #e9f5f3; padding: 15px; border-radius: 5px; text-align: center; }
+        .footer { margin-top: 20px; font-size: 0.8em; text-align: center; color: #777; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Your Order is On Its Way!</h1>
+        <p>Hi <%= order.customerName %>,</p>
+        <p>Great news! Your Favorite Plug order (<strong>#<%= order.id.slice(-6) %></strong>) has been shipped and is now on its way to you.</p>
+        
+        <div class="highlight">
+            <p><strong>Shipping To:</strong><br><%= order.shippingAddress %></p>
+        </div>
+        
+        <p>You can expect your delivery soon. Thank you for your patience!</p>
+        
+        <div class="footer">
+            <p>Thank you for shopping with Favorite Plug!</p>
+        </div>
+    </div>
+</body>
+</html>

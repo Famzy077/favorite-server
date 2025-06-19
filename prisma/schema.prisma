@@ -112,8 +112,7 @@ model Order {
   contactPhone    String
 
   status          String      @default("PENDING")
-  // --- THE FIX IS HERE ---
-  paymentMethod   String      @default("PAY_ON_DELIVERY") // Set a default value
+  paymentMethod   String      @default("PAY_ON_DELIVERY")
   createdAt       DateTime    @default(now())
 }
 
@@ -125,5 +124,5 @@ model OrderItem {
   productId Int
   
   quantity  Int
-  price     Float   // Price of the product at the time of order
+  price     Float
 }
