@@ -9,7 +9,7 @@ const orderRoutes = require('./src/routes/order.Routes.js')
 const cors = require('cors')
 const app = express();
 app.use(express.json());
-const ejs = require('ejs')
+// const ejs = require('ejs')
 const path = require('path');
 
 // Set EJS as the view engine
@@ -20,7 +20,6 @@ app.set('views', path.join(__dirname, '/src/views'));
 // Static files (e.g., CSS if needed)
 app.use(express.static(path.join(__dirname, 'public')));
 
-// To fix the test route, provide mock data
 // app.get('/test-email', (req, res) => {
 //   const mockOrder = { id: 'test-123', status: 'PENDING', contactPhone: '080...', shippingAddress: '...' };
 //   const mockCustomer = { email: 'test@example.com' };
