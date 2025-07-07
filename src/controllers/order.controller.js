@@ -63,7 +63,7 @@ const createOrder = async (req, res) => {
         });
 
         await transporter.sendMail({
-            from: `"Favorite Plug" <${process.env.EMAIL_USER}>`,
+            from: `"Favvorite plug" <${process.env.EMAIL_USER}>`,
             to: adminEmails.join(','),
             subject: `[ADMIN] New Order Received! #${order.id.slice(-6)}`,
             html: adminHtml,
@@ -81,9 +81,9 @@ const createOrder = async (req, res) => {
         });
 
         await transporter.sendMail({
-            from: `"Favorite Plug" <${process.env.EMAIL_USER}>`,
+            from: `"Favvorite plug" <${process.env.EMAIL_USER}>`,
             to: customer.email,
-            subject: `Your Favorite Plug Order is Confirmed! #${order.id.slice(-6)}`,
+            subject: `Your Favvorite plug Order is Confirmed! #${order.id.slice(-6)}`,
             html: customerHtml,
         });
     } catch (emailError) {
@@ -162,9 +162,9 @@ const updateOrderStatus = async (req, res) => {
                     );
 
                     await transporter.sendMail({
-                        from: `"Favorite Plug" <${process.env.EMAIL_USER}>`,
+                        from: `"Favvorite plug" <${process.env.EMAIL_USER}>`,
                         to: customer.email,
-                        subject: `Your Favorite Plug Order Has Shipped! #${updatedOrder.id.slice(-6)}`,
+                        subject: `Your Favvorite plug Order Has Shipped! #${updatedOrder.id.slice(-6)}`,
                         html: emailHtml,
                     });
                 }

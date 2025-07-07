@@ -19,7 +19,7 @@ const sendVerificationCode = async (req, res) => {
     await redisClient.setEx(`verify:${email}`, 600, code);
     const html = await ejs.renderFile(path.join(__dirname, '../views/verification.ejs'), { code });
     await transporter.sendMail({
-      from: `"Favorite Plug" <${process.env.EMAIL_USER}>`,
+      from: `"Favvorite plug" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: 'Your Verification Code',
       html,
@@ -152,9 +152,9 @@ const createAccount = async (req, res) => {
       const html = await ejs.renderFile(templatePath, { email: normalizedEmail });
 
       await transporter.sendMail({
-        from: `"Favorite Plug" <${process.env.EMAIL_USER}>`,
+        from: `"Favvorite plug" <${process.env.EMAIL_USER}>`,
         to: normalizedEmail,
-        subject: 'Welcome to Favorite Plug!',
+        subject: 'Welcome to Favvorite plug!',
         html, // rendered EJS HTML
       });
 
@@ -244,7 +244,7 @@ const login = async (req, res) => {
     const token = jwt.sign(
       { userId: user.id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '60d'}
     );
     
     // Success response
@@ -505,7 +505,7 @@ const forgotPassword = async (req, res) => {
 
       // You can create a new EJS template for this email
       await transporter.sendMail({
-        from: `"Favorite Plug" <${process.env.EMAIL_USER}>`,
+        from: `"Favvorite plug" <${process.env.EMAIL_USER}>`,
         to: user.email,
         subject: 'Your Password Reset Request',
         html: `

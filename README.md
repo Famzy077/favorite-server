@@ -1,6 +1,6 @@
-# 🔌 Favorite Plug – Backend API
+# 🔌 Favvorite plug – Backend API
 
-This repository contains the backend server for the **Favorite Plug** application — a powerful RESTful API built with **Node.js**, **Express**, and **Prisma ORM**. It handles everything from user authentication to product management and admin operations.
+This repository contains the backend server for the **Favvorite plug** application — a powerful RESTful API built with **Node.js**, **Express**, and **Prisma ORM**. It handles everything from user authentication to product management and admin operations.
 
 ---
 
@@ -152,7 +152,7 @@ Authorization: Bearer <token>
 {
   "fullName": "Xavier Plug",
   "phone": "08012345678",
-  "address": "123 Favorite Plug Blvd"
+  "address": "123 Favvorite plug Blvd"
 }
 ```
 
