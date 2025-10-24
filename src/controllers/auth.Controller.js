@@ -4,7 +4,7 @@ const redisClient = require('../utils/redisClient');
 const bcrypt = require('bcryptjs');
 const ejs = require('ejs')
 const path = require('path')
-const transporter = require('../config/resend')
+const { resend, FROM_EMAIL } = require('../config/resend');
 
 // Initialize Prisma Client
 const prisma = new PrismaClient();
