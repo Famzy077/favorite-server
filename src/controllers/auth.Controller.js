@@ -4,7 +4,7 @@ const redisClient = require('../utils/redisClient');
 const bcrypt = require('bcryptjs');
 const ejs = require('ejs')
 const path = require('path')
-const transporter = require('../config/mailer')
+const transporter = require('../config/resend')
 
 // Initialize Prisma Client
 const prisma = new PrismaClient();
@@ -16,17 +16,20 @@ const sendVerificationCode = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email is required' });
     }
     const code = Math.floor(1000 + Math.random() * 9000).toString();
-    await redisClient.setEx(`verify:${email}`, 600, code);
+    await redisClient.setEx(`verify:${email}`, 600, code); // 10 min expiry
+
+    // Render EJS email template
     const html = await ejs.renderFile(path.join(__dirname, '../views/verification.ejs'), { code });
-    await transporter.sendMail({
-      from: `"Favvorite plug" <${process.env.EMAIL_USER}>`,
+
+    await resend.emails.send({
+      from: FROM_EMAIL,
       to: email,
-      subject: 'Your Verification Code',
-      html,
+      subject: 'Your Favorite Plug Verification Code',
+      html: html,
     });
+
     res.status(200).json({ success: true, message: 'Verification code sent successfully' });
   } catch (err) {
-    // FIX: Detailed logging
     console.error("--- Send Verification Code Error ---", { message: err.message, stack: err.stack, body: req.body });
     res.status(500).json({ success: false, message: 'Failed to send verification code' });
   }
@@ -61,139 +64,75 @@ const createAccount = async (req, res) => {
   try {
     const { email, password, confirmPassword } = req.body;
 
-    // Validate input
+    // --- Validation (Keep all your existing validation checks) ---
     if (!email || !password || !confirmPassword) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'All fields are required' 
-      });
+      return res.status(400).json({ success: false, message: 'All fields are required' });
     }
-
-    // Normalize email
     const normalizedEmail = email.toLowerCase();
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(normalizedEmail)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid email format'
-      });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      return res.status(400).json({ success: false, message: 'Invalid email format' });
     }
-
-    // Check password match
     if (password !== confirmPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Passwords do not match'
-      });
+      return res.status(400).json({ success: false, message: 'Passwords do not match' });
     }
-
-    // Check password strength
     if (password.length < 8) {
-      return res.status(400).json({
-        success: false,
-        message: 'Password must be at least 8 characters'
-      });
+      return res.status(400).json({ success: false, message: 'Password must be at least 8 characters' });
     }
-
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: normalizedEmail }
-    });
-
+    const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (existingUser) {
-      return res.status(409).json({
-        success: false,
-        message: 'User already exists'
-      });
+      return res.status(409).json({ success: false, message: 'User already exists' });
     }
-
-    // Check Redis for email verification
     const isVerified = await redisClient.get(`verified:${normalizedEmail}`);
     if (!isVerified) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Email not verified' 
-      });
+      return res.status(400).json({ success: false, message: 'Email not verified' });
     }
+    // --- End Validation ---
 
-    // Clear the verification flag to prevent reuse
-    await redisClient.del(`verified:${normalizedEmail}`);
-
-    // Hash password
+    await redisClient.del(`verified:${normalizedEmail}`); // Clear verification flag
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create user in the database
     const user = await prisma.user.create({
-      data: {
-        email: normalizedEmail,
-        password: hashedPassword,
-        verified: true
-      },
-      select: {
-        id: true,
-        email: true,
-        verified: true,
-        createdAt: true
-      }
+      data: { email: normalizedEmail, password: hashedPassword, verified: true },
+      select: { id: true, email: true, verified: true, createdAt: true, role: true } // Include role
     });
 
     const token = jwt.sign(
       { userId: user.id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '60d' }
     );
 
-
-    // Send welcome email
+    // Send welcome email using Resend
     try {
       const templatePath = path.join(__dirname, '../views/welcome.ejs');
       const html = await ejs.renderFile(templatePath, { email: normalizedEmail });
 
-      await transporter.sendMail({
-        from: `"Favvorite plug" <${process.env.EMAIL_USER}>`,
+      await resend.emails.send({
+        from: FROM_EMAIL,
         to: normalizedEmail,
-        subject: 'Welcome to Favvorite plug!',
-        html, // rendered EJS HTML
+        subject: 'Welcome to Favorite Plug!',
+        html: html,
       });
 
     } catch (emailError) {
-      console.error('Welcome email failed:', emailError);
+      console.error("--- Welcome Email Error ---", { message: emailError.message, stack: emailError.stack });
     }
 
     res.status(201).json({
       success: true,
       message: 'Account created and logged in successfully',
-      token: token, 
+      token: token,
       user: user
     });
 
-    console.log('Account created:', user);
-
   } catch (error) {
-    console.error('Account creation error:', error)
-
-    // Handle Prisma unique constraint error
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2002') {
-        return res.status(409).json({
-          success: false,
-          message: 'User already exists'
-        });
-      }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return res.status(409).json({ success: false, message: 'User already exists' });
     }
     console.error("--- Create Account Error ---", { message: error.message, stack: error.stack, body: req.body });
-    res.status(500).json({ success: false, message: 'Internal server error' });   
-
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
-
-
-
-
-
-
 
 // LOGIN - User login
 const login = async (req, res) => {
@@ -485,29 +424,25 @@ const checkEmail = async (req, res) => {
   }
 };
 
+// --- Forgot Password ---
 const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
     const normalizedEmail = email.toLowerCase();
-
     const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
 
-    // Important: Always send a success message, even if the user doesn't exist.
-    // This prevents "user enumeration," a security vulnerability.
     if (user) {
       const resetToken = jwt.sign(
-        { userId: user.id, email: user.email },
+        { userId: user.id },
         process.env.JWT_SECRET,
         { expiresIn: '1h' }
       );
-      
       const resetUrl = `${process.env.CLIENT_URL}/reset-password?token=${resetToken}`;
 
-      // You can create a new EJS template for this email
-      await transporter.sendMail({
-        from: `"Favvorite plug" <${process.env.EMAIL_USER}>`,
+      await resend.emails.send({
+        from: FROM_EMAIL,
         to: user.email,
-        subject: 'Your Password Reset Request',
+        subject: 'Your Favorite Plug Password Reset Request',
         html: `
           <h1>You requested a password reset</h1>
           <p>Click this link to reset your password: <a href="${resetUrl}">Reset Password</a> It is valid for 1 hour.</p>
@@ -522,11 +457,15 @@ const forgotPassword = async (req, res) => {
   }
 };
 
+// --- Reset Password ---
 const resetPassword = async (req, res) => {
   try {
     const { token, newPassword } = req.body;
     if (!token || !newPassword) {
       return res.status(400).json({ success: false, message: 'Token and new password are required.' });
+    }
+    if (newPassword.length < 8) {
+       return res.status(400).json({ success: false, message: 'Password must be at least 8 characters long.' });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -539,7 +478,7 @@ const resetPassword = async (req, res) => {
   } catch (error) {
     console.error("--- Reset Password Error ---", { message: error.message, stack: error.stack });
     if (error instanceof jwt.JsonWebTokenError || error instanceof jwt.TokenExpiredError) {
-        return res.status(401).json({ success: false, message: 'Invalid or expired token.' });
+      return res.status(401).json({ success: false, message: 'Invalid or expired token.' });
     }
     res.status(500).json({ success: false, message: 'Internal server error' });
   }

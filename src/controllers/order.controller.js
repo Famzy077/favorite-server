@@ -1,12 +1,11 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const transporter = require('../config/mailer');
+const { resend, FROM_EMAIL } = require('../config/resend'); 
 const ejs = require('ejs');
-const path =require('path');
-
+const path = require('path');
 
 const createOrder = async (req, res) => {
-  const userId = req.user.id;
+  const userId = req.user.id; 
   try {
     const { shippingAddress, contactPhone, fullName, paymentMethod } = req.body;
 
@@ -48,10 +47,9 @@ const createOrder = async (req, res) => {
       return newOrder;
     });
 
-    // --- EMAIL NOTIFICATION LOGIC ---
     const customer = await prisma.user.findUnique({ where: { id: userId } });
 
-    // 1. Notify all Admins
+  // Notify all Admins
     try {
       const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } });
       const adminEmails = admins.map(admin => admin.email);
@@ -62,9 +60,9 @@ const createOrder = async (req, res) => {
             order, customer, cartItems: cart.items, totalAmount 
         });
 
-        await transporter.sendMail({
-            from: `"Favvorite plug" <${process.env.EMAIL_USER}>`,
-            to: adminEmails.join(','),
+        await resend.emails.send({
+            from: FROM_EMAIL,
+            to: adminEmails, // Resend handles arrays
             subject: `[ADMIN] New Order Received! #${order.id.slice(-6)}`,
             html: adminHtml,
         });
@@ -73,17 +71,17 @@ const createOrder = async (req, res) => {
       console.error("--- Failed to send ADMIN order notification ---", emailError);
     }
 
-    // 2. Send confirmation to the Customer
+    // Send confirmation to the Customer
     try {
         const customerTemplatePath = path.resolve(process.cwd(), 'src/views/customer-order-confirmation.ejs');
         const customerHtml = await ejs.renderFile(customerTemplatePath, { 
             order, customer, cartItems: cart.items, totalAmount 
         });
 
-        await transporter.sendMail({
-            from: `"Favvorite plug" <${process.env.EMAIL_USER}>`,
+        await resend.emails.send({
+            from: FROM_EMAIL,
             to: customer.email,
-            subject: `Your Favvorite plug Order is Confirmed! #${order.id.slice(-6)}`,
+            subject: `Your Favorite Plug Order is Confirmed! #${order.id.slice(-6)}`,
             html: customerHtml,
         });
     } catch (emailError) {
@@ -99,85 +97,83 @@ const createOrder = async (req, res) => {
 
 // --- GET all orders (for Admin) ---
 const getAllOrders = async (req, res) => {
-    try {
-        const orders = await prisma.order.findMany({
-            orderBy: { createdAt: 'desc' },
-            include: { user: { select: { email: true, userDetails: { select: { fullName: true } } } } }
-        });
-        res.status(200).json({ success: true, data: orders });
-    } catch (error) {
-        console.error("--- Get All Orders Error ---", { message: error.message });
-        res.status(500).json({ success: false, message: 'Internal server error.' });
-    }
+  try {
+    const orders = await prisma.order.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { user: { select: { email: true, userDetails: { select: { fullName: true } } } } }
+    });
+    res.status(200).json({ success: true, data: orders });
+  } catch (error) {
+    console.error("--- Get All Orders Error ---", { message: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
 };
 
 // --- GET a single order by ID (for Admin) ---
 const getOrderById = async (req, res) => {
     try {
-        const { id } = req.params;
-        const order = await prisma.order.findUnique({
-            where: { id },
-            include: {
-                items: { include: { product: { include: { images: true } } } },
-                user: { select: { email: true, userDetails: { select: { fullName: true } } } }
-            }
-        });
-        if (!order) {
-            return res.status(404).json({ success: false, message: "Order not found." });
+      const { id } = req.params;
+      const order = await prisma.order.findUnique({
+        where: { id },
+        include: {
+          items: { include: { product: { include: { images: true } } } },
+          user: { select: { email: true, userDetails: { select: { fullName: true } } } }
         }
-        res.status(200).json({ success: true, data: order });
+      });
+      if (!order) {
+        return res.status(404).json({ success: false, message: "Order not found." });
+      }
+      res.status(200).json({ success: true, data: order });
     } catch (error) {
-        console.error("--- Get Order By ID Error ---", { message: error.message });
-        res.status(500).json({ success: false, message: 'Internal server error.' });
+      console.error("--- Get Order By ID Error ---", { message: error.message });
+      res.status(500).json({ success: false, message: 'Internal server error.' });
     }
 };
 
 // --- UPDATE an order's status (for Admin) ---
 const updateOrderStatus = async (req, res) => {
     try {
-        const { id } = req.params;
-        const { status } = req.body;
+      const { id } = req.params;
+      const { status } = req.body;
 
-        if (!status) {
-            return res.status(400).json({ success: false, message: "Status is required." });
+      if (!status) {
+        return res.status(400).json({ success: false, message: "Status is required." });
+      }
+
+      const updatedOrder = await prisma.order.update({
+        where: { id },
+        data: { status }
+      });
+
+      // If the new status is "SHIPPED", send an email to the customer using Resend
+      if (updatedOrder.status === 'SHIPPED') {
+        try {
+          const customer = await prisma.user.findUnique({
+              where: { id: updatedOrder.userId }
+          });
+
+          if (customer) {
+            const emailHtml = await ejs.renderFile(
+              path.join(__dirname, '../views/customer-shipped-notification.ejs'),
+              { order: updatedOrder, customer } 
+            );
+
+            // NEW: Use resend.emails.send
+            await resend.emails.send({
+              from: FROM_EMAIL,
+              to: customer.email,
+              subject: `Your Favorite Plug Order Has Shipped! #${updatedOrder.id.slice(-6)}`,
+              html: emailHtml,
+            });
+          }
+        } catch (emailError) {
+          console.error("--- Failed to send SHIPPED notification email ---", emailError);
         }
-
-        const updatedOrder = await prisma.order.update({
-            where: { id },
-            data: { status }
-        });
-
-        // If the new status is "SHIPPED", send an email to the customer.
-        if (updatedOrder.status === 'SHIPPED') {
-            try {
-                // We need the customer's email, so we fetch the user associated with the order.
-                const customer = await prisma.user.findUnique({
-                    where: { id: updatedOrder.userId }
-                });
-
-                if (customer) {
-                    const emailHtml = await ejs.renderFile(
-                        path.join(__dirname, '../views/customer-shipped-notification.ejs'),
-                        { order: updatedOrder, customer } // Pass the updated order details
-                    );
-
-                    await transporter.sendMail({
-                        from: `"Favvorite plug" <${process.env.EMAIL_USER}>`,
-                        to: customer.email,
-                        subject: `Your Favvorite plug Order Has Shipped! #${updatedOrder.id.slice(-6)}`,
-                        html: emailHtml,
-                    });
-                }
-            } catch (emailError) {
-                // Don't crash the main request if the email fails, just log it.
-                console.error("--- Failed to send SHIPPED notification email ---", emailError);
-            }
-        }
-
-        res.status(200).json({ success: true, message: `Order status updated to ${status}.`, data: updatedOrder });
+      }
+      res.status(200).json({ success: true, message: `Order status updated to ${status}.`, data: updatedOrder });
     } catch (error) {
-        console.error("--- Update Order Status Error ---", { message: error.message });
-        res.status(500).json({ success: false, message: 'Internal server error.' });
+      console.error("--- Update Order Status Error ---", { message: error.message });
+      res.status(500).json({ success: false, message: 'Internal server error.' });
     }
 };
 

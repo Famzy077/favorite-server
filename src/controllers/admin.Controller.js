@@ -32,8 +32,8 @@ const getAllUsers = async (req, res) => {
 // --- BLOCK or UNBLOCK a user ---
 const toggleUserBlockStatus = async (req, res) => {
   try {
-    const { id } = req.params; // The ID of the user to block/unblock
-    const adminUserId = req.user.id; // The ID of the admin performing the action
+    const { id } = req.params;
+    const adminUserId = req.user.id;
 
     // Safety check: An admin cannot block themselves
     if (id === adminUserId) {
